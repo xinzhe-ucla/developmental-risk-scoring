@@ -29,11 +29,11 @@ p.cutoff <- as.numeric(opts$cutoff);
 system.date <- Sys.Date();
 
 # function testing:
-# meta.data.path <- "/u/home/l/lixinzhe/project-geschwind/data/GSE215353/processed/meta/subset-mcg-meta.csv"
-# scDRS.directory <- "/u/project/geschwind/lixinzhe/scDRS-output/met-scDRS-v3/mcg/GSE215353-mcg-knn/"
-# group.index <- 'X_MajorType'
+# meta.data.path <- "/u/home/l/lixinzhe/project-cluo/data/2025-05-02-combined-meta-QCed.csv"
+# scDRS.directory <- "/u/home/l/lixinzhe/project-cluo/result/met-scDRS/single_cell_baseline/"
+# group.index <- 'L3'
 # p.cutoff <- 0.1
-# output.path <- '/u/home/l/lixinzhe/project-geschwind/plot/'
+# output.path <- paste0("/u/home/l/lixinzhe/project-geschwind/plot/", Sys.Date(),'-initial-BICAN-mcg-l3-proportion.png')
 # plot.type <- 'proportion'
 
 # load libraries:
@@ -145,55 +145,23 @@ publication.traits <- c(
     'UKB_460K.biochemistry_Glucose'
     );
 
-cell.type.order <- c(
-    "L2/3-IT",
-    "L4-IT",
-    "L5-ET",
-    "L5-IT",
-    "L5/6-NP",
-    "L6-CT",
-    "L6-IT",
-    "L6-IT-Car3",
-    "L6b",
-    "Amy-Exc",
-    "CA1",
-    "CA3",
-    "DG",
-    "HIP-Misc1",
-    "HIP-Misc2",
-    "CB",
-    "Chd7",
-    "Foxp2",
-    "MSN-D1",
-    "MSN-D2",
-    "PKJ",
-    "PN",
-    "Lamp5",
-    "Lamp5-Lhx6",
-    "Pvalb",
-    "Pvalb-ChC",
-    "Sncg",
-    "Sst",
-    "SubCtx-Cplx",
-    "THM-Exc",
-    "THM-Inh",
-    "THM-MB",
-    "Vip",
-    "ASC",
-    "EC",
-    "MGC",
-    "ODC",
-    "OPC",
-    "PC",
-    "VLMC"
-    );
+cell.types = unique(meta[, group.index])
+excitatory = sort(cell.types[grep('^Exc', cell.types)])
+inhibitory = sort(cell.types[grep('^Inh', cell.types)])
+others = setdiff(cell.types, c(excitatory, inhibitory))
+
+cell.type.order = c(
+    excitatory,
+    inhibitory,
+    others
+    )
 
 # remove the word pass from the traits:
 publication.traits <- gsub('PASS_', '', publication.traits)
 rownames(significance.matrix) <- gsub('PASS_', '', rownames(significance.matrix))
 
 # plot the heatmap using the subset of traits and the ordered cell types:
-if (all(cell.type.order %in% colnames(significance.matrix)) & all(publication.traits %in% rownames(significance.matrix))) {
+if ((group.index %in% c('L1', 'L2', 'L3')) & all(publication.traits %in% rownames(significance.matrix))) {
 
     # first design the color function depending on how many significant cells there are:
     if (plot.type == 'count'){
@@ -244,9 +212,9 @@ if (all(cell.type.order %in% colnames(significance.matrix)) & all(publication.tr
         rep('Others', 7)
         );
     column.split = c(
-        rep('Excitatory', 15),
-        rep('Inhibitory', 18),
-        rep('Others', 7)
+        rep('Excitatory', length(excitatory)),
+        rep('Inhibitory', length(inhibitory)),
+        rep('Others', length(others))
         )
 
     plot <- Heatmap(
