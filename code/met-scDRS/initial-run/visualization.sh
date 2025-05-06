@@ -51,3 +51,6 @@ Rscript /u/home/l/lixinzhe/project-github/scDRS-applications/code/GSE215353/met-
     --yaxis "UMAP_2" \
     --cutoff 0.1 \
     --out "/u/home/l/lixinzhe/project-geschwind/plot/intial_run_developmental_methylation_umap/"
+
+### add a UMAP of cell type:
+Rscript /u/home/l/lixinzhe/project-github/developmental-risk-scoring/code/met-scDRS/initial-run/cell_type_plot.R
