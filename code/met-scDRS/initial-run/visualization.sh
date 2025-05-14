@@ -49,6 +49,14 @@ Rscript /u/home/l/lixinzhe/project-github/developmental-risk-scoring/code/met-sc
     --out "/u/home/l/lixinzhe/project-geschwind/plot/${current_date}-initial-BICAN-mcg-region-proportion.png" \
     --plot_type "proportion"
 
+Rscript /u/home/l/lixinzhe/project-github/developmental-risk-scoring/code/met-scDRS/initial-run/proportion-heatmap.R \
+    --dir "/u/home/l/lixinzhe/project-cluo/result/met-scDRS/single_cell_baseline/" \
+    --meta_data "/u/home/l/lixinzhe/project-cluo/data/2025-05-02-combined-meta-QCed.csv" \
+    --field 'age' \
+    --cutoff 0.1 \
+    --out "/u/home/l/lixinzhe/project-geschwind/plot/${current_date}-initial-BICAN-mcg-age-proportion.png" \
+    --plot_type "proportion"
+
 ### for umap:
 current_date=$(date +"%Y-%m-%d")
 

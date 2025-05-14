@@ -80,6 +80,19 @@ names(risk.score) <- list.names;
 
 ### ANALYSIS: CELL TYPE NUMBER VISUALIZATION ######################################################
 # for each of the result, find out the number of significant cells in each cell type:
+# label the '' as 'unknown'
+meta$L1[meta$L1 == ''] = 'unknown'
+meta$L2[meta$L2 == ''] = 'unknown'
+meta$L3[meta$L3 == ''] = 'unknown'
+
+# recode the fine_age:
+meta$fine_age[meta$fine_age == '1m'] = '1mo'
+meta$fine_age[meta$fine_age == '4m'] = '4mo'
+meta$fine_age[meta$fine_age == '21'] = '21 years old'
+meta$fine_age[meta$fine_age == '29'] = '29 years old'
+meta$fine_age[meta$fine_age == '31'] = '31 years old'
+meta$fine_age[meta$fine_age == '37'] = '37 years old'
+
 meta[meta[, group.index] == '', group.index] = 'unknown'
 cell.type <- unique(meta[, group.index]);
 significance.matrix <- matrix(NA, nrow = length(risk.score), ncol = length(cell.type));
