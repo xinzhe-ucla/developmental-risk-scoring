@@ -112,6 +112,9 @@ adata_combined.var_names = make_unique(adata_combined.var_names.tolist())
 # check if all genes are unique:
 assert adata_combined.var_names.is_unique, "Gene names are still not unique!"
 
+# output one that doesn't have any preprocessing:
+adata_combined.write(f'/u/home/l/lixinzhe/project-cluo/data/{today}-combined-mcg-raw.h5ad')
+
 ### MET_SCDRS_PREPROCESS ##########################################################################
 # Compute the gene variances:
 print('filtering low variance genes: ')
