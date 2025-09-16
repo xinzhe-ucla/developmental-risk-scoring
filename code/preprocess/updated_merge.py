@@ -86,8 +86,7 @@ loaded_file = []
 # load in the samples h5ad (obs::QC)
 for file_index, sample in tqdm(enumerate(samples_to_read)):
     # load in the backend:
-    adata_backend = sc.read_h5ad(sample, backed = 'r')
-    adata = adata_backend[:5000, :].to_memory()
+    adata = sc.read_h5ad(sample)
     
     # since some of the variable names are not the same:
     adata = ENSG_to_HGNC(adata, convert = True)
