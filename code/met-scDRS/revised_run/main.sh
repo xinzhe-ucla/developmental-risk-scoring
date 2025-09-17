@@ -20,8 +20,8 @@ for gs_file in ${input_gs_dir}KC_75_traits_split.gs*; do
         "mean_var_length" \
         "arcsine" \
         "inv_std" \
-        '/u/home/l/lixinzhe/project-cluo/result/met-scDRS/dev-revised-test/diagnostics/' \
-        '/u/home/l/lixinzhe/project-cluo/result/met-scDRS/dev-revised-test/' \
+        '/u/home/l/lixinzhe/project-geschwind/result/met-scDRS/dev-revised/diagnostics/' \
+        '/u/home/l/lixinzhe/project-geschwind/result/met-scDRS/dev-revised/' \
         
     # treat the cluster nicely:
     sleep 1
