@@ -85,7 +85,7 @@ if [ -n "$cov_file" ]; then
         --ctrl_match_opt ${control_scheme} \
         --weight_opt ${weight_opt} \
         --n_ctrl 1000 \
-        --flag_return_ctrl_raw_score True \
+        --flag_return_ctrl_raw_score False \
         --flag_return_ctrl_norm_score True \
         --diagnostic True \
         --diagnostic_dir ${diagnostic_dir} \
@@ -104,7 +104,7 @@ else
         --ctrl_match_opt ${control_scheme} \
         --weight_opt ${weight_opt} \
         --n_ctrl 1000 \
-        --flag_return_ctrl_raw_score True \
+        --flag_return_ctrl_raw_score False \
         --flag_return_ctrl_norm_score True \
         --diagnostic True \
         --diagnostic_dir ${diagnostic_dir} \
