@@ -58,7 +58,7 @@ meta <- read.csv(
     
 mdd = data.frame(
     data.table::fread(
-        file =  "/u/home/l/lixinzhe/project-geschwind/result/met-scDRS/dev-revised//PASS_MDD_Howard2019.score.gz",
+        file =  paste0(scDRS.directory, "/PASS_MDD_Howard2019.score.gz"),
         sep = '\t',
         header = TRUE,
         data.table = FALSE

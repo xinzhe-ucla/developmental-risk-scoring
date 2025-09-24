@@ -46,3 +46,11 @@ Rscript /u/home/l/lixinzhe/project-github/developmental-risk-scoring/code/met-sc
     --yaxis "Y_umap" \
     --cutoff 0.1 \
     --out "/u/home/l/lixinzhe/project-geschwind/plot/revised-intial_run_developmental_methylation_umap/"
+
+Rscript /u/home/l/lixinzhe/project-github/developmental-risk-scoring/code/met-scDRS/revised_run/umap-plot.R \
+    --dir "/u/home/l/lixinzhe/project-geschwind/result/met-scDRS/dev-revised/exc/" \
+    --meta_data '/u/project/cluo/heffel/BICAN3/3C/bican_2025_3Cumap.csv.gz' \
+    --xaxis "X_umap" \
+    --yaxis "Y_umap" \
+    --cutoff 0.1 \
+    --out "/u/home/l/lixinzhe/project-geschwind/plot/revised-intial_run_developmental_methylation_umap/exc/"
