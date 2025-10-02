@@ -1,6 +1,7 @@
 ### spatial-age-in-traits #########################################################################
 library(data.table)
 library(tidyverse)
+library(clusterProfiler);
 
 meta = read.table('/u/project/cluo/heffel/BICAN3/DATA/metadata_09122025.csv.gz', sep = ',', header=TRUE, row.names = 1)
 scDRS.directory = '/u/home/l/lixinzhe/project-geschwind/result/met-scDRS/dev-revised/'
@@ -126,7 +127,7 @@ png(
 print(gplot)
 dev.off();
 
-
+### HEATMAP #######################################################################################
 # cell type by fine age plot for SCZ
 disease = 'PASS_Schizophrenia_Pardinas2018'
 frame = cbind(risk.score[[disease]], meta)
@@ -202,4 +203,113 @@ png(
     );
 
 draw(plot)
+dev.off();
+
+### Do the Network diagram also ###################################################################
+function.path <- '/u/home/l/lixinzhe/project-github/scDRS-applications/spell-book/'
+source(paste0(function.path, 'score-loader.R'));
+source(paste0(function.path, 'disease-score-expr-correlation.R'))
+source(paste0(function.path, 'gene-ontology-caller.R'))
+source(paste0(function.path, 'gs-decomposer.R'));
+
+# load in the genes that went into the score:
+gs.dir <- '/u/project/geschwind/lixinzhe/scDRS-output/magma-out/Kangcheng-gs/gs_file/';
+gsea.c5 <- read.gmt('/u/project/geschwind/lixinzhe/data/c5.all.v2023.1.Hs.entrez.gmt');
+
+trait.gs <- read.table(
+    file = paste0(gs.dir, 'magma_10kb_top1000_zscore.75_traits.rv1.gs'),
+    sep = '\t',
+    header = TRUE
+    );
+
+# split gene sets:
+trait.gene.set <- lapply(trait.gs$GENESET, gs.decomposer);
+names(trait.gene.set) <- trait.gs$TRAIT;
+
+## subset to Schizophrenia disease:
+disease = 'PASS_Schizophrenia_Pardinas2018'
+frame = cbind(risk.score[[disease]], meta)
+
+# load in the data:
+ad <- anndata::read_h5ad('/u/project/cluo/lixinzhe/data/BICAN3/unnormalized_genebody_blacklist_allgenes_merged.h5ad')
+expr <- as.matrix(ad$X)
+rownames(expr) <- ad$obs_names
+colnames(expr) <- ad$var_names
+
+new_name = gsub('-0-0-0', '', rownames(expr))
+new_name = gsub('-1-0$', '', new_name)
+new_name = gsub('-1$', '', new_name)
+new_name = gsub('-1-0-0$', '', new_name)
+
+# get the common cells:
+rownames(expr) = new_name
+disease = 'PASS_Schizophrenia_Pardinas2018'
+frame = cbind(risk.score[[disease]][new_name, ], meta)
+
+# produce a vector of expr:
+stopifnot(rownames(expr) == rownames(frame))
+cor_vec = rep(NA, ncol(expr))
+names(cor_vec) = colnames(expr)
+
+# compute the gene expression to score correlation:
+score.mch.cor <- expr.ds.cor(
+    score = risk.score[disease],
+    expression = expr,
+    gene.set = trait.gene.set[disease]
+    );
+
+# compute the gene ontology enrichments:
+ontology.gene.num = 100
+top.genes = {}
+top.genes[[disease]] <- names(head(sort(score.mch.cor[[disease]], decreasing = TRUE), ontology.gene.num));
+
+bg.gene <- intersect(names(trait.gene.set[[disease]]), colnames(expr));
+
+gene.ontology.result <- gene.ontology.caller(
+    x = top.genes[[disease]],
+    background = bg.gene,
+    terms = gsea.c5,
+    visualize = TRUE
+    );
+readable.result <- setReadable(gene.ontology.result, 'org.Hs.eg.db', 'ENTREZID')
+
+# newwork plot:
+cor.gene = head(sort(score.mch.cor[[disease]], decreasing = TRUE), ontology.gene.num)
+network.plot <- cnetplot(
+        readable.result,
+        categorySize = "pvalue",
+        color.params = list(foldChange = cor.gene, edge = TRUE),
+        circular = TRUE) + 
+        ggtitle(disease) +
+        theme_classic() +
+        theme(text = element_text(size = 20)) +
+        theme(plot.title = element_text(hjust=0.5)) +
+        theme(legend.text = element_text(size = 12))
+
+network.path <- '/u/home/l/lixinzhe/project-geschwind/plot/'
+plot.name <- paste0(network.path, Sys.Date(), '-SCZ-gene-ontology-enrichment-network-legend.png')
+png(
+    filename = plot.name,
+    width = 10,
+    height = 10,
+    units = 'in',
+    res = 400
+    );
+
+legend <- cowplot::get_legend(network.plot);
+grid.newpage()
+grid.draw(legend)
+dev.off()
+
+# plot out the network only:
+plot.name <- paste0(network.path, Sys.Date(), '-SCZ-gene-ontology-enrichment-network.png')
+network.plot <- network.plot + theme(legend.position = "none")
+png(
+    filename = plot.name,
+    width = 10,
+    height = 10,
+    units = 'in',
+    res = 400
+    );
+print(network.plot);
 dev.off();
