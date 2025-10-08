@@ -92,3 +92,11 @@ Rscript /u/home/l/lixinzhe/project-github/developmental-risk-scoring/code/met-sc
     --cutoff 0.1 \
     --out "/u/home/l/lixinzhe/project-geschwind/plot/${current_date}-revised-BICAN-mcg-fine-age-proportion.png" \
     --plot_type "proportion"
+
+Rscript /u/home/l/lixinzhe/project-github/developmental-risk-scoring/code/met-scDRS/revised_run/umap-plot.R \
+    --dir "/u/home/l/lixinzhe/project-geschwind/result/met-scDRS/dev-revised/cov/" \
+    --meta_data '/u/home/l/lixinzhe/project-geschwind/port/scratch/met_scdrs_dev/joint_umap_coords_281146.csv' \
+    --xaxis "X_umap" \
+    --yaxis "Y_umap" \
+    --cutoff 0.1 \
+    --out "/u/home/l/lixinzhe/project-geschwind/plot/cov-intial_run_developmental_methylation_umap-281146/"
