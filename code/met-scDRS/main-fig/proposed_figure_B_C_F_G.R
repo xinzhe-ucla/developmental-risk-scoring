@@ -168,7 +168,7 @@ print(gplot)
 dev.off();
 
 ###########################################################################################
-######                                    FIGURE D                                   ######
+######                                    FIGURE F                                   ######
 ###########################################################################################
 ## bind the umap into meta as well:
 meta$score = risk.score[['PASS_ADHD_Demontis2018']]$zscore
@@ -213,7 +213,7 @@ significant.cell <- rownames(meta)[meta$fdr < p.cutoff];
 insignificant.cell <- setdiff(rownames(meta), significant.cell);
 
 ###########################################################################################
-######                                    FIGURE E                              ######
+######                                    FIGURE G                              ######
 ###########################################################################################
 # next, we plot out umap based only on 1 m 
 month_1 = meta$fine2_age_groups == '1m'
