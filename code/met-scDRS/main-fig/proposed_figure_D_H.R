@@ -130,13 +130,11 @@ gplot <- ggplot(plot_df, aes(x = age_group, y = risk_score, fill = cell_type)) +
     theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
     theme(text = element_text(size = 20))
 
-output.path <- paste0('/u/home/l/lixinzhe/project-geschwind/plot/', Sys.Date(), '-SCZ-L3-met-scdrs-by-age-box-plot.png')
-png(
-    filename = output.path,
+output.path <- paste0('/u/home/l/lixinzhe/project-geschwind/plot/', Sys.Date(), '-SCZ-L3-met-scdrs-by-age-box-plot.pdf')
+pdf(
+    file = output.path,
     width = 7,
-    height = 5,
-    units = 'in',
-    res = 400
+    height = 5
     );
 print(gplot)
 dev.off();
@@ -185,13 +183,11 @@ gplot <- ggplot(plot_df, aes(x = age_group, y = risk_score, fill = cell_type)) +
     theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
     theme(text = element_text(size = 20))
 
-output.path <- paste0('/u/home/l/lixinzhe/project-geschwind/plot/', Sys.Date(), '-ADHD-L3-met-scdrs-by-age-box-plot.png')
-png(
-    filename = output.path,
+output.path <- paste0('/u/home/l/lixinzhe/project-geschwind/plot/', Sys.Date(), '-ADHD-L3-met-scdrs-by-age-box-plot.pdf')
+pdf(
+    file = output.path,
     width = 7,
-    height = 5,
-    units = 'in',
-    res = 400
+    height = 5
     );
 print(gplot)
 dev.off();
