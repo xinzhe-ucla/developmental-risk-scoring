@@ -49,13 +49,11 @@ for (combo in names(cor_collection)){
         theme(legend.text = element_text(size = 12))
 
     network.path <- '/u/home/l/lixinzhe/project-geschwind/plot/'
-    plot.name <- paste0(network.path, Sys.Date(), '-', combo, '-gene-ontology-enrichment-network-legend.png')
-    png(
-        filename = plot.name,
+    plot.name <- paste0(network.path, Sys.Date(), '-', combo, '-gene-ontology-enrichment-network-legend.pdf')
+    pdf(
+        file = plot.name,
         width = 10,
-        height = 10,
-        units = 'in',
-        res = 400
+        height = 10
         );
 
     legend <- cowplot::get_legend(network.plot);
@@ -63,16 +61,13 @@ for (combo in names(cor_collection)){
     grid.draw(legend)
     dev.off()
         
-    plot.name <- paste0(network.path, Sys.Date(), '-', combo, '-gene-ontology-enrichment-network.png')
+    plot.name <- paste0(network.path, Sys.Date(), '-', combo, '-gene-ontology-enrichment-network.pdf')
     network.plot <- network.plot + theme(legend.position = "none")
-    png(
-        filename = plot.name,
+    pdf(
+        file = plot.name,
         width = 10,
-        height = 10,
-        units = 'in',
-        res = 400
+        height = 10
         );
     print(network.plot);
     dev.off();
-
 }

@@ -116,13 +116,11 @@ gplot <- ggplot(plot.df, aes(x = X_umap, y = Y_umap)) +
     ylim(-15, 18)
 
 # draw out the plot:
-output.path <- paste0('/u/home/l/lixinzhe/project-geschwind/plot/', Sys.Date(), '-all-SCZ-scDRS-score-umap.png')
-png(
-    filename = output.path,
+output.path <- paste0('/u/home/l/lixinzhe/project-geschwind/plot/', Sys.Date(), '-all-SCZ-scDRS-score-umap.pdf')
+pdf(
+    file = output.path,
     width = 14,
-    height = 14,
-    units = 'in',
-    res = 400
+    height = 14
     );
 print(gplot)
 dev.off();
@@ -156,13 +154,11 @@ gplot <- ggplot(plot.df, aes(x = X_umap, y = Y_umap)) +
     ylim(-15, 18)
 
 # draw out the plot:
-output.path <- paste0('/u/home/l/lixinzhe/project-geschwind/plot/', Sys.Date(), '-1m-SCZ-scDRS-score-umap.png')
-png(
-    filename = output.path,
+output.path <- paste0('/u/home/l/lixinzhe/project-geschwind/plot/', Sys.Date(), '-1m-SCZ-scDRS-score-umap.pdf')
+pdf(
+    file = output.path,
     width = 14,
-    height = 14,
-    units = 'in',
-    res = 400
+    height = 14
     );
 print(gplot)
 dev.off();
@@ -196,13 +192,11 @@ gplot <- ggplot(plot.df, aes(x = X_umap, y = Y_umap)) +
     ylim(-15, 18)
 
 # draw out the plot:
-output.path <- paste0('/u/home/l/lixinzhe/project-geschwind/plot/', Sys.Date(), '-all-ADHD-scDRS-score-umap.png')
-png(
-    filename = output.path,
+output.path <- paste0('/u/home/l/lixinzhe/project-geschwind/plot/', Sys.Date(), '-all-ADHD-scDRS-score-umap.pdf')
+pdf(
+    file = output.path,
     width = 14,
-    height = 14,
-    units = 'in',
-    res = 400
+    height = 14
     );
 print(gplot)
 dev.off();
@@ -236,13 +230,11 @@ gplot <- ggplot(plot.df, aes(x = X_umap, y = Y_umap)) +
     ylim(-15, 18)
 
 # draw out the plot:
-output.path <- paste0('/u/home/l/lixinzhe/project-geschwind/plot/', Sys.Date(), '-1m-ADHD-scDRS-score-umap.png')
-png(
-    filename = output.path,
+output.path <- paste0('/u/home/l/lixinzhe/project-geschwind/plot/', Sys.Date(), '-1m-ADHD-scDRS-score-umap.pdf')
+pdf(
+    file = output.path,
     width = 14,
-    height = 14,
-    units = 'in',
-    res = 400
+    height = 14
     );
 print(gplot)
 dev.off();

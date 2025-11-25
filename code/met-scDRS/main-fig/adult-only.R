@@ -185,12 +185,10 @@ heatmap.height <- convertY(ComplexHeatmap:::height(plot.size), "inch", valueOnly
 
 # use the measured width and height for drawing:
 output.path <- paste0('/u/home/l/lixinzhe/project-geschwind/plot/', Sys.Date(), '-developmental-cell-type-brain-traits-proportion-adult-only.png')
-png(
-    filename = output.path,
+pdf(
+    file = output.path,
     width = heatmap.width,
-    height = heatmap.height,
-    units = 'in',
-    res = 400
+    height = heatmap.height
     );
 draw(plot, heatmap_legend_side = 'left', padding = unit(c(30, 10, 10, 70), "mm"));
 dev.off();
@@ -241,12 +239,10 @@ gplot <- ggplot(plot_df, aes(x = cell_type, y = risk_score, fill = cell_type)) +
     theme(legend.position = "none")
 
 output.path <- paste0('/u/home/l/lixinzhe/project-cluo/plot/', Sys.Date(), '-SCZ-cell-type-met-scdrs-box-plot.png')
-png(
-    filename = output.path,
+pdf(
+    file = output.path,
     width = 5,
-    height = 10,
-    units = 'in',
-    res = 400
+    height = 10
     );
 print(gplot)
 dev.off();
@@ -281,12 +277,10 @@ gplot <- ggplot(plot_df, aes(x = age_group, y = risk_score, fill = newL1)) +
     theme(text = element_text(size = 20))
 
 output.path <- paste0('/u/home/l/lixinzhe/project-cluo/plot/', Sys.Date(), '-SCZ-L1-met-scdrs-by-age-box-plot.png')
-png(
-    filename = output.path,
+pdf(
+    file = output.path,
     width = 7,
-    height = 5,
-    units = 'in',
-    res = 400
+    height = 5
     );
 print(gplot)
 dev.off();
@@ -330,12 +324,10 @@ gplot <- ggplot(plot_df, aes(x = age_group, y = risk_score, fill = cell_type)) +
     theme(text = element_text(size = 20))
 
 output.path <- paste0('/u/home/l/lixinzhe/project-cluo/plot/', Sys.Date(), '-SCZ-L3-met-scdrs-by-age-box-plot.png')
-png(
-    filename = output.path,
+pdf(
+    file = output.path,
     width = 7,
-    height = 5,
-    units = 'in',
-    res = 400
+    height = 5
     );
 print(gplot)
 dev.off();

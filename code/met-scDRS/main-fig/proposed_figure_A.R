@@ -181,7 +181,7 @@ cell.type.order = c(
     others
     )
 
-column.split = c(significance_matrix
+column.split = c(
     rep('Excitatory', length(excitatory)),
     rep('Inhibitory', length(inhibitory)),
     rep('Others', length(others))
@@ -227,13 +227,11 @@ heatmap.width <- convertX(ComplexHeatmap:::width(plot.size), "inch", valueOnly =
 heatmap.height <- convertY(ComplexHeatmap:::height(plot.size), "inch", valueOnly = TRUE)
 
 # use the measured width and height for drawing:
-output.path <- paste0('/u/home/l/lixinzhe/project-geschwind/plot/', Sys.Date(), '-developmental-cell-type-selected-traits-proportion-adult-only.png')
-png(
-    filename = output.path,
+output.path <- paste0('/u/home/l/lixinzhe/project-geschwind/plot/', Sys.Date(), '-developmental-cell-type-selected-traits-proportion-adult-only.pdf')
+pdf(
+    file = output.path,
     width = heatmap.width,
-    height = heatmap.height,
-    units = 'in',
-    res = 400
+    height = heatmap.height
     );
 draw(plot, heatmap_legend_side = 'left', padding = unit(c(30, 10, 10, 70), "mm"));
 dev.off();
@@ -318,13 +316,11 @@ heatmap.width <- convertX(ComplexHeatmap:::width(plot.size), "inch", valueOnly =
 heatmap.height <- convertY(ComplexHeatmap:::height(plot.size), "inch", valueOnly = TRUE)
 
 # use the measured width and height for drawing:
-output.path <- paste0('/u/home/l/lixinzhe/project-geschwind/plot/', Sys.Date(), '-developmental-cell-type-selected-traits-proportion-all-timepoint.png')
-png(
-    filename = output.path,
+output.path <- paste0('/u/home/l/lixinzhe/project-geschwind/plot/', Sys.Date(), '-developmental-cell-type-selected-traits-proportion-all-timepoint.pdf')
+pdf(
+    file = output.path,
     width = heatmap.width,
-    height = heatmap.height,
-    units = 'in',
-    res = 400
+    height = heatmap.height
     );
 draw(plot, heatmap_legend_side = 'left', padding = unit(c(30, 10, 10, 70), "mm"));
 dev.off();
