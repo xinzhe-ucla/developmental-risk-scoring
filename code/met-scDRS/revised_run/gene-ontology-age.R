@@ -115,7 +115,7 @@ for (each_combo in names(gene_set)){
             visualize = TRUE
             );
         readable.result <- setReadable(gene.ontology.result, 'org.Hs.eg.db', 'ENTREZID')
-        saveRDS(score.mch.cor, paste0('/u/home/l/lixinzhe/project-geschwind/port/scratch/revision/GO/age/', each_combo, '_SCZ_score_mcg_correlation.rds'))
+        saveRDS(score.mch.cor[[each_combo]], paste0('/u/home/l/lixinzhe/project-geschwind/port/scratch/revision/GO/age/', each_combo, '_SCZ_score_mcg_correlation.rds'))
         saveRDS(readable.result, paste0('/u/home/l/lixinzhe/project-geschwind/port/scratch/revision/GO/age/', each_combo, '_SCZ_readable_go_results.rds'))
         
         # visualize the gene ontology for MDD:
@@ -236,7 +236,7 @@ for (each_combo in names(gene_set)){
         readable.result <- setReadable(gene.ontology.result, 'org.Hs.eg.db', 'ENTREZID')
         
         # save the results:
-        saveRDS(score.mch.cor, paste0('/u/home/l/lixinzhe/project-geschwind/port/scratch/revision/GO/age/', each_combo, '_ADHD_score_mcg_correlation.rds'))
+        saveRDS(score.mch.cor[[each_combo]], paste0('/u/home/l/lixinzhe/project-geschwind/port/scratch/revision/GO/age/', each_combo, '_ADHD_score_mcg_correlation.rds'))
         saveRDS(readable.result, paste0('/u/home/l/lixinzhe/project-geschwind/port/scratch/revision/GO/age/', each_combo, '_ADHD_readable_go_results.rds'))
         
         # visualize the gene ontology for MDD:
