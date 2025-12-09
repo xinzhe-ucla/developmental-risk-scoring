@@ -129,8 +129,8 @@ for (disease in traits.interest) {
     readable.result <- setReadable(gene.ontology.result, 'org.Hs.eg.db', 'ENTREZID')
     
     # save the results:
-    saveRDS(score.mch.cor, paste0('/u/home/l/lixinzhe/project-geschwind/port/scratch/revision/GO/', disease, '_score_mch_correlation.rds'))
-    saveRDS(readable.result, paste0('/u/home/l/lixinzhe/project-geschwind/port/scratch/revision/GO/', disease, '_readable_go_results.rds'))
+    saveRDS(score.mch.cor, paste0('/u/home/l/lixinzhe/project-geschwind/port/scratch/revision/GO/cov/', disease, '_score_mch_correlation.rds'))
+    saveRDS(readable.result, paste0('/u/home/l/lixinzhe/project-geschwind/port/scratch/revision/GO/cov/', disease, '_readable_go_results.rds'))
     
     dot.plot <- dotplot(
         gene.ontology.result,

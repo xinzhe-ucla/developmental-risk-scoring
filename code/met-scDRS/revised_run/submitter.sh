@@ -6,7 +6,7 @@
 #$ -o /u/scratch/l/lixinzhe/job-log/joblog.$JOB_ID
 #$ -j y
 ## Edit the line below as needed:
-#$ -l h_rt=24:00:00,h_data=25G
+#$ -l h_rt=30:00:00,h_data=25G,highp
 ## Modify the parallel environment
 ## and the number of cores as needed:
 #$ -pe shared 4
