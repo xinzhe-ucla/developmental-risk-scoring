@@ -6,54 +6,40 @@ import anndata
 from anndata import AnnData
 from datetime import date
 import mygene
-
-def make_unique(names):
-    from collections import defaultdict
-    counter = defaultdict(int)
-    unique_names = []
-    
-    for name in names:
-        count = counter[name]
-        if count == 0:
-            unique_names.append(name)
-        else:
-            unique_names.append(f"{name}.{count}")
-        counter[name] += 1
-    
-    return unique_names
+import numpy as np
+import scanpy as sc
 
 today = date.today()
 print(today)
 
-### PREAMBLE ######################################################################################
-df=[]
-for f in os.listdir('/u/project/jflint/heffel/Heng/hic_gene_score_h5ad/'):
-    if 'h5' in f:
-        tdf=pd.read_hdf('/u/project/jflint/heffel/Heng/hic_gene_score_h5ad/'+f, key='X')
-        df.append(tdf)
-        df=pd.concat(df)
-        gdata=AnnData(df)
+###########################################################################################
+######                        Adapted to new Heng generated loops                    ######
+###########################################################################################
+# load in the methylation ratio
+met_ratio = '/u/home/h/hex002/project-cluo/BICAN/loop_methylation/merged/all_groups_merged.h5ad'
+loop_ratio = sc.read_h5ad(met_ratio)
 
-# save the gdata:
-gdata.write(f'/u/project/cluo/lixinzhe/data/{today}_heng_loop_combined.h5ad')
+# check data:
+assert loop_ratio.var_names.is_unique, 'Gene names not unique'
+assert np.sum(np.isnan(loop_ratio.X)) == 0, 'NAs in the methylation matrix'
 
-# change the gene names:
-mg = mygene.MyGeneInfo()
-ensg_ids = [gene_id.split('.')[0] for gene_id in gdata.var_names] # remove the suffixes
-query_result = mg.querymany(ensg_ids, scopes="ensembl.gene", fields="symbol", species="human")
+# No preprocessing will be done because Heng has already preprocessed it well!
 
-# create a dictionary on the ensg id to hgnc symbol
-ensg_to_symbol = {
-    item['query']: item.get('symbol', item['query'])  # Use ENSG if no symbol found
-    for item in query_result if not item.get('notfound', False)
-}
+###########################################################################################
+######                                  Get covariates                               ######
+###########################################################################################
+# load in the meta data:
+meta = pd.read_csv('/u/project/cluo/heffel/BICAN3/DATA/metadata_09122025.csv.gz', index_col = 0)
+meta_reordered = meta.loc[loop_ratio.obs_names,:]
 
-# Replace var_names with HGNC symbols where available
-gdata.var_names = [ensg_to_symbol.get(gene_id, gene_id) for gene_id in ensg_ids]
-gdata.var_names = make_unique(gdata.var_names.tolist())
+# write out the covaraite:
+covariate = pd.DataFrame({
+    "cell": meta_reordered.index,
+    "const": 1,
+    "global": meta_reordered['mCG/CG_global']
+})
 
-# check if all genes are unique:
-assert gdata.var_names.is_unique, "Gene names are still not unique!"
+assert (covariate.cell == loop_ratio.obs_names).all(), 'not all covariate rownames match with loop ratio'
 
-# output one that doesn't have any preprocessing:
-gdata.write(f'/u/home/l/lixinzhe/project-cluo/data/{today}-combined-3C-gene-score.h5ad')
+# write out the covariate table:
+covariate.to_csv('/u/project/cluo/lixinzhe/data/BICAN3/Heng_all_groups_merged.cov', sep = '\t', index = False)
