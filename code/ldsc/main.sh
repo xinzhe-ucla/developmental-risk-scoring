@@ -68,3 +68,92 @@ for hg19_DMR_bed in /u/scratch/l/lixinzhe/tmp-file/*.hg19.dmr.bed; do
             "${anno_out_dir}${base}.${CHR}.annot.gz"
     done
 done
+
+###########################################################################################
+######                                    Running LDSC                               ######
+###########################################################################################
+# making annotation:
+conda activate ldsc
+cd /u/home/l/lixinzhe/project-geschwind/software/ldsc/ldsc
+
+submission_script='/u/home/l/lixinzhe/project-github/developmental-risk-scoring/code/ldsc/annot_ldscore_submitter.sh'
+anno_out_dir='/u/home/l/lixinzhe/project-geschwind/result/ldsc/brain-dev/annot/'
+for hg19_DMR_bed in /u/scratch/l/lixinzhe/tmp-file/*.hg19.dmr.bed; do
+    # make annotation from chromosome 1:22
+    for CHR in {1..22}; do
+        base=$(basename "$hg19_DMR_bed")
+        base=${base%.*}
+        annotation_file="${anno_out_dir}${base}.${CHR}.annot.gz"
+        bfile="/u/home/l/lixinzhe/project-geschwind/software/ldsc/1000G_EUR_Phase3_plink/1000G.EUR.QC.${CHR}"
+        annotation_ldscore="${anno_out_dir}${base}.${CHR}"
+        if [[ -f "${annotation_ldscore}.l2.ldscore.gz" ]]; then
+            echo "[$base chr$CHR] exists -> skip"
+            continue
+        fi
+        qsub ${submission_script} \
+            "${bfile}" \
+            "${annotation_file}" \
+            "${annotation_ldscore}"
+    done
+done
+
+###########################################################################################
+######                                    Munge SUMSTAT                              ######
+###########################################################################################
+# speicify genome wide summary statistics:
+gwas='/u/home/l/lixinzhe/project-geschwind/data/MDD-GWAS/PGC_UKB_depression_genome-wide.txt'
+gwas_dir='/u/home/l/lixinzhe/project-geschwind/result/ldsc/brain-dev/gwas/'
+
+## munge MDD statistics:
+conda activate ldsc
+cd /u/home/l/lixinzhe/project-geschwind/software/ldsc/ldsc 
+python munge_sumstats.py \
+    --snp "MarkerName" \
+    --N-cas 246363 \
+    --N-con 561190 \
+    --sumstats ${gwas} \
+    --a1 A1 \
+    --a2 A2 \
+    --frq Freq \
+    --p P \
+    --signed-sumstats LogOR,0 \
+    --out "${gwas_dir}PGC_UKB_depression_genome_wide"
+
+###########################################################################################
+######                          LDSC Partitioned Heritability                        ######
+###########################################################################################
+
+# do ldsc:
+conda activate ldsc
+cd /u/home/l/lixinzhe/project-geschwind/software/ldsc/ldsc
+annotation_dir="/u/home/l/lixinzhe/project-geschwind/result/ldsc/brain-dev/annot/"
+baseline_dir="/u/home/l/lixinzhe/project-geschwind/software/ldsc/"
+
+# for MDD:
+gwas_dir='/u/home/l/lixinzhe/project-geschwind/result/ldsc/brain-dev/gwas/'
+gwas="${gwas_dir}PGC_UKB_depression_genome_wide.sumstats.gz"
+submission_script="/u/home/l/lixinzhe/project-github/developmental-risk-scoring/code/ldsc/partitoined-heritability-submitter.sh"
+baselines="/u/home/l/lixinzhe/project-geschwind/software/ldsc/baselineLD."
+
+for hg19_DMR_bed in /u/scratch/l/lixinzhe/tmp-file/*.hg19.dmr.bed; do
+    base=$(basename "$hg19_DMR_bed")
+    annot_ldscore="${annotation_dir}${base%.*}."
+    output="/u/home/l/lixinzhe/project-geschwind/result/ldsc/brain-dev/partitioned_heritability/${base%.*}"
+    
+    if [[ -f "${output}.results" ]]; then
+        echo "output exists -> skip"
+        continue
+    fi
+    qsub ${submission_script} \
+        "${gwas}" \
+        "${annot_ldscore}" \
+        "${baselines}" \
+        "${output}"
+done
+
+###########################################################################################
+######                                    Visualize                                  ######
+###########################################################################################
+Rscript /u/home/l/lixinzhe/project-github/developmental-risk-scoring/code/ldsc/visualization.R \
+    --ldsc_dir '/u/home/l/lixinzhe/project-geschwind/result/ldsc/brain-dev/partitioned_heritability/' \
+    --output "/u/home/l/lixinzhe/project-geschwind/plot/$(date +%F)-mdd-heritability-developmental-cell-type-by-time-point.pdf"
