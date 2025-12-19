@@ -119,10 +119,41 @@ python munge_sumstats.py \
     --signed-sumstats LogOR,0 \
     --out "${gwas_dir}PGC_UKB_depression_genome_wide"
 
-###########################################################################################
-######                          LDSC Partitioned Heritability                        ######
-###########################################################################################
+### SCZ pardinaz 2018
+cd /u/home/l/lixinzhe/project-geschwind/data/GWAS
+gwas_dir="/u/home/l/lixinzhe/project-geschwind/data/GWAS/"
+gwas="/u/home/l/lixinzhe/project-geschwind/data/GWAS/Schizophrenia_pardinas2018"
 
+conda activate ldsc
+cd /u/home/l/lixinzhe/project-geschwind/software/ldsc/ldsc 
+python munge_sumstats.py \
+    --snp "SNP" \
+    --N-cas 11260 \
+    --N-con 24542 \
+    --sumstats ${gwas} \
+    --a1 A1 \
+    --a2 A2 \
+    --p P \
+    --out "${gwas_dir}Schizophrenia_pardinas2018_munged"
+
+### ADHD 
+gwas_dir="/u/home/l/lixinzhe/project-geschwind/data/GWAS/"
+gwas="/u/home/l/lixinzhe/project-geschwind/data/GWAS/ADHD_Demontis2018"
+
+cd /u/home/l/lixinzhe/project-geschwind/software/ldsc/ldsc 
+python munge_sumstats.py \
+    --snp "SNP" \
+    --N-cas-col Nca \
+    --N-con-col Nco \
+    --sumstats ${gwas} \
+    --a1 A1 \
+    --a2 A2 \
+    --p P \
+    --out "${gwas_dir}ADHD_Demontis2018_munged"
+
+###########################################################################################
+######                       LDSC Partitioned Heritability MDD                       ######
+###########################################################################################
 # do ldsc:
 conda activate ldsc
 cd /u/home/l/lixinzhe/project-geschwind/software/ldsc/ldsc
@@ -151,9 +182,75 @@ for hg19_DMR_bed in /u/scratch/l/lixinzhe/tmp-file/*.hg19.dmr.bed; do
         "${output}"
 done
 
-###########################################################################################
-######                                    Visualize                                  ######
-###########################################################################################
+# visualize
 Rscript /u/home/l/lixinzhe/project-github/developmental-risk-scoring/code/ldsc/visualization.R \
     --ldsc_dir '/u/home/l/lixinzhe/project-geschwind/result/ldsc/brain-dev/partitioned_heritability/' \
     --output "/u/home/l/lixinzhe/project-geschwind/plot/$(date +%F)-mdd-heritability-developmental-cell-type-by-time-point.pdf"
+
+###########################################################################################
+######                  LDSC Partitioned Heritability SCZ                            ######
+###########################################################################################
+conda activate ldsc
+cd /u/home/l/lixinzhe/project-geschwind/software/ldsc/ldsc
+annotation_dir="/u/home/l/lixinzhe/project-geschwind/result/ldsc/brain-dev/annot/"
+baseline_dir="/u/home/l/lixinzhe/project-geschwind/software/ldsc/"
+
+gwas_dir="/u/home/l/lixinzhe/project-geschwind/data/GWAS/"
+gwas="${gwas_dir}Schizophrenia_pardinas2018_munged.sumstats.gz"
+submission_script="/u/home/l/lixinzhe/project-github/developmental-risk-scoring/code/ldsc/partitoined-heritability-submitter.sh"
+baselines="/u/home/l/lixinzhe/project-geschwind/software/ldsc/baselineLD."
+
+for hg19_DMR_bed in /u/scratch/l/lixinzhe/tmp-file/*.hg19.dmr.bed; do
+    base=$(basename "$hg19_DMR_bed")
+    annot_ldscore="${annotation_dir}${base%.*}."
+    output="/u/home/l/lixinzhe/project-geschwind/result/ldsc/brain-dev/partitioned_heritability/Schizophrenia_pardinas2018/${base%.*}"
+    
+    if [[ -f "${output}.results" ]]; then
+        echo "output exists -> skip"
+        continue
+    fi
+    qsub ${submission_script} \
+        "${gwas}" \
+        "${annot_ldscore}" \
+        "${baselines}" \
+        "${output}"
+done
+
+Rscript /u/home/l/lixinzhe/project-github/developmental-risk-scoring/code/ldsc/visualization.R \
+    --ldsc_dir '/u/home/l/lixinzhe/project-geschwind/result/ldsc/brain-dev/partitioned_heritability/Schizophrenia_pardinas2018/' \
+    --output "/u/home/l/lixinzhe/project-geschwind/plot/$(date +%F)-scz-pardinas2018-heritability-developmental-cell-type-by-time-point.pdf"
+
+
+###########################################################################################
+######                  LDSC Partitioned Heritability ADHD                           ######
+###########################################################################################
+conda activate ldsc
+cd /u/home/l/lixinzhe/project-geschwind/software/ldsc/ldsc
+annotation_dir="/u/home/l/lixinzhe/project-geschwind/result/ldsc/brain-dev/annot/"
+baseline_dir="/u/home/l/lixinzhe/project-geschwind/software/ldsc/"
+
+gwas_dir="/u/home/l/lixinzhe/project-geschwind/data/GWAS/"
+gwas="${gwas_dir}ADHD_Demontis2018_munged.sumstats.gz"
+submission_script="/u/home/l/lixinzhe/project-github/developmental-risk-scoring/code/ldsc/partitoined-heritability-submitter.sh"
+baselines="/u/home/l/lixinzhe/project-geschwind/software/ldsc/baselineLD."
+
+for hg19_DMR_bed in /u/scratch/l/lixinzhe/tmp-file/*.hg19.dmr.bed; do
+    base=$(basename "$hg19_DMR_bed")
+    annot_ldscore="${annotation_dir}${base%.*}."
+    output="/u/home/l/lixinzhe/project-geschwind/result/ldsc/brain-dev/partitioned_heritability/ADHD_Demontis2018/${base%.*}"
+    
+    if [[ -f "${output}.results" ]]; then
+        echo "output exists -> skip"
+        continue
+    fi
+    qsub ${submission_script} \
+        "${gwas}" \
+        "${annot_ldscore}" \
+        "${baselines}" \
+        "${output}"
+done
+
+# visualize:
+Rscript /u/home/l/lixinzhe/project-github/developmental-risk-scoring/code/ldsc/visualization.R \
+    --ldsc_dir '/u/home/l/lixinzhe/project-geschwind/result/ldsc/brain-dev/partitioned_heritability/ADHD_Demontis2018/' \
+    --output "/u/home/l/lixinzhe/project-geschwind/plot/$(date +%F)-ADHD_Demontis2018-heritability-developmental-cell-type-by-time-point.pdf"
