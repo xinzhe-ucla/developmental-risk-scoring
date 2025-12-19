@@ -85,6 +85,7 @@ for (age in age_point){
     significance_matrix = data.frame(matrix(NA, nrow = length(risk.score), ncol = length(unique(meta_at_age$adjusted_L3))))
     colnames(significance_matrix) = unique(meta_at_age$adjusted_L3)
     rownames(significance_matrix) = names(risk.score)
+    num_matrix = significance_matrix
     
     # for each disease, get the proportion:
     for (disease in names(risk.score)){
@@ -106,11 +107,14 @@ for (age in age_point){
         
         # coerce into named vector:
         sig_by_celltype_in_disease = c(proprotion_sig$proportion)
+        number_by_celltype_in_disease = c(proprotion_sig$n)
         names(sig_by_celltype_in_disease) = proprotion_sig$adjusted_L3
+        names(number_by_celltype_in_disease) = proprotion_sig$adjusted_L3
         sig_by_celltype_in_disease = sig_by_celltype_in_disease[colnames(significance_matrix)]
-        
+        number_by_celltype_in_disease = number_by_celltype_in_disease[colnames(significance_matrix)]
         # put the result into a significant proportion matrix:
         significance_matrix[disease, ] = sig_by_celltype_in_disease
+        num_matrix[disease, ] = number_by_celltype_in_disease
     }
     
     ### make the matrix ###
@@ -122,15 +126,15 @@ for (age in age_point){
     trait.info$Trait_Identifier <- gsub('cov_', '', trait.info$Trait_Identifier)
     trait.info$Trait_Identifier <- gsub('repro_', '', trait.info$Trait_Identifier)
 
-    rownames(significance.matrix) <- gsub('PASS_', '', rownames(significance.matrix))
-    rownames(significance.matrix) <- gsub('UKB_460K.', '', rownames(significance.matrix))
-    rownames(significance.matrix) <- gsub('cov_', '', rownames(significance.matrix))
-    rownames(significance.matrix) <- gsub('repro_', '', rownames(significance.matrix))
+    rownames(num_matrix) <- rownames(significance.matrix) <- gsub('PASS_', '', rownames(significance.matrix))
+    rownames(num_matrix) <- rownames(significance.matrix) <- gsub('UKB_460K.', '', rownames(significance.matrix))
+    rownames(num_matrix) <- rownames(significance.matrix) <- gsub('cov_', '', rownames(significance.matrix))
+    rownames(num_matrix) <- rownames(significance.matrix) <- gsub('repro_', '', rownames(significance.matrix))
 
     trait.class <- trait.info$Category[match(rownames(significance.matrix), trait.info$Trait_Identifier)];
 
     # select traits to plot:
-    publication.traits <- rownames(significance.matrix)[trait.class == 'brain'];
+    publication.traits = c('ADHD_Demontis2018', 'BIP_Mullins2021', 'MDD_Howard2019', 'Schizophrenia_Pardinas2018', 'EDU_YEARS', 'Type_1_Diabetes', 'cancer_BREAST')
     # grab out the cell types:
     cell.types = unique(meta_at_age[, 'adjusted_L3'])
     excitatory = sort(cell.types[grep('^Exc', cell.types)])
@@ -165,22 +169,40 @@ for (age in age_point){
         );
 
     # create heatmap:
+    B <- num_matrix[publication.traits, cell.type.order]
+    min_cells_in_bin = 50
     plot <- Heatmap(
         as.matrix(significance.matrix)[publication.traits, cell.type.order],
         name = 'Sig. cells',
         col = col.fun,
         rect_gp = gpar(col = "black", lwd = 2),
         #row_order = publication.traits,
-        cluster_rows = FALSE,
+        cluster_rows = TRUE,
         #column_order = cell.type.order,
-        cluster_columns = FALSE,
+        cluster_columns = TRUE,
         width = unit(10 * length(cell.type.order),"mm"),
         height = unit(10 * length(publication.traits),"mm"),
         column_names_gp = grid::gpar(fontsize = 15),
         row_names_gp = grid::gpar(fontsize = 15),
         # row_split = row.split,
         column_split = column.split,
-        heatmap_legend_param = heatmap.legend.param
+        heatmap_legend_param = heatmap.legend.param,
+        cell_fun = function(j, i, x, y, w, h, fill) {
+            
+            if (B[i, j] <= min_cells_in_bin) {
+            # grey out
+            grid.rect(
+                x, y, w, h,
+                gp = gpar(fill = "grey85", col = NA)
+            )
+            } else {
+            # normal heatmap cell
+            grid.rect(
+                x, y, w, h,
+                gp = gpar(fill = fill, col = NA)
+            )
+            }
+        }
         );
     plot.size <- draw(plot, heatmap_legend_side = 'left', padding = unit(c(30, 10, 10, 70), "mm"));
 
