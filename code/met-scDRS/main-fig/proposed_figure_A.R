@@ -166,7 +166,7 @@ rownames(significance.matrix) <- gsub('repro_', '', rownames(significance.matrix
 trait.class <- trait.info$Category[match(rownames(significance.matrix), trait.info$Trait_Identifier)];
 
 # select traits to plot:
-publication.traits = c('ADHD_Demontis2018', 'BIP_Mullins2021', 'MDD_Howard2019', 'Schizophrenia_Pardinas2018', 'EDU_YEARS', 'Type_1_Diabetes', 'biochemistry_Cholesterol', 'biochemistry_Glucose', 'blood_EOSINOPHIL_COUNT', 'cancer_BREAST')
+publication.traits = c('ADHD_Demontis2018', 'BIP_Mullins2021', 'MDD_Howard2019', 'Schizophrenia_Pardinas2018', 'EDU_YEARS', 'Type_1_Diabetes', 'biochemistry_Cholesterol', 'Type_2_Diabetes', 'blood_EOSINOPHIL_COUNT', 'cancer_BREAST')
 #publication.traits <- rownames(significance.matrix)[trait.class == 'brain'];
 
 # grab out the cell types:
@@ -236,6 +236,15 @@ pdf(
 draw(plot, heatmap_legend_side = 'left', padding = unit(c(30, 10, 10, 70), "mm"));
 dev.off();
 
+### make the matrix ###
+write.table(
+    significance.matrix,
+    file = paste0('/u/home/l/lixinzhe/project-geschwind/plot/', Sys.Date(), '-developmental-cell-type-selected-traits-proportion-adult-only.csv'),
+    sep = ',',
+    col.names = TRUE,
+    row.names = TRUE,
+    quote = FALSE
+    )
 ###########################################################################################
 ######                            all cells across time                              ######
 ###########################################################################################
@@ -255,7 +264,7 @@ rownames(significance.matrix) <- gsub('repro_', '', rownames(significance.matrix
 trait.class <- trait.info$Category[match(rownames(significance.matrix), trait.info$Trait_Identifier)];
 
 # select traits to plot:
-publication.traits = c('ADHD_Demontis2018', 'BIP_Mullins2021', 'MDD_Howard2019', 'Schizophrenia_Pardinas2018', 'EDU_YEARS', 'Type_1_Diabetes', 'cancer_BREAST')
+publication.traits = c('ADHD_Demontis2018', 'BIP_Mullins2021', 'MDD_Howard2019', 'Schizophrenia_Pardinas2018', 'EDU_YEARS', 'Type_1_Diabetes', 'biochemistry_Cholesterol', 'Type_2_Diabetes', 'blood_EOSINOPHIL_COUNT', 'cancer_BREAST')
 #publication.traits <- rownames(significance.matrix)[trait.class == 'brain'];
 
 # grab out the cell types:
@@ -325,3 +334,12 @@ pdf(
 draw(plot, heatmap_legend_side = 'left', padding = unit(c(30, 10, 10, 70), "mm"));
 dev.off();
 
+### make the matrix ###
+write.table(
+    significance.matrix,
+    file = paste0('/u/home/l/lixinzhe/project-geschwind/plot/', Sys.Date(), '-developmental-cell-type-selected-traits-proportion-all-timepoint.csv'),
+    sep = ',',
+    col.names = TRUE,
+    row.names = TRUE,
+    quote = FALSE
+    )
