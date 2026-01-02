@@ -119,6 +119,14 @@ for (age in age_point){
     
     ### make the matrix ###
     significance.matrix = significance_matrix
+    write.table(
+        significance.matrix,
+        file = paste0('/u/home/l/lixinzhe/project-geschwind/plot/', Sys.Date(), '-developmental-cell-type-brain-traits-proportion-', age, '-only.csv'),
+        sep = ',',
+        col.names = TRUE,
+        row.names = TRUE,
+        quote = FALSE
+        )
 
     # find out the set of brain traits:
     trait.info$Trait_Identifier <- gsub('PASS_', '', trait.info$Trait_Identifier)
@@ -134,7 +142,8 @@ for (age in age_point){
     trait.class <- trait.info$Category[match(rownames(significance.matrix), trait.info$Trait_Identifier)];
 
     # select traits to plot:
-    publication.traits = c('ADHD_Demontis2018', 'BIP_Mullins2021', 'MDD_Howard2019', 'Schizophrenia_Pardinas2018', 'EDU_YEARS', 'Type_1_Diabetes', 'cancer_BREAST')
+    publication.traits = c('ADHD_Demontis2018', 'BIP_Mullins2021', 'MDD_Howard2019', 'Schizophrenia_Pardinas2018', 'EDU_YEARS', 'Type_1_Diabetes', 'biochemistry_Cholesterol', 'Type_2_Diabetes', 'blood_EOSINOPHIL_COUNT', 'cancer_BREAST')
+
     # grab out the cell types:
     cell.types = unique(meta_at_age[, 'adjusted_L3'])
     excitatory = sort(cell.types[grep('^Exc', cell.types)])
@@ -170,7 +179,7 @@ for (age in age_point){
 
     # create heatmap:
     B <- num_matrix[publication.traits, cell.type.order]
-    min_cells_in_bin = 50
+    min_cells_in_bin = 0
     plot <- Heatmap(
         as.matrix(significance.matrix)[publication.traits, cell.type.order],
         name = 'Sig. cells',
