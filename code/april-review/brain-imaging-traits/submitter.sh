@@ -39,43 +39,48 @@ echo "processing $item"
 start=$(date +%s)
 base=$(basename "$item" .txt.gz)
 
-# add the number of sample into the data:
-zcat "$item" \
-| awk 'BEGIN{OFS="\t"}
-        NR==1 {
-            $(NF+1)="N"
-            $(NF+1)="pval"
-            print
-            next
-        }
-        {
-            logp=$8
-            p=10^(-logp)
-            $(NF+1)="33219"
-            $(NF+1)=p
-            print
-        }' > "/u/home/l/lixinzhe/project-cluo/data/brain_volume_gwas/withN/${base%.txt.gz}_withN.txt"
+if [ -f "${out_magma_dir}${base%.txt.gz}-grch37-munge-input.txt" ]
+then
+    echo "${out_magma_dir}${base%.txt.gz}-grch37-munge-input.txt output already exists, skipping"
+else
+    # add the number of sample into the data:
+    zcat "$item" \
+    | awk 'BEGIN{OFS="\t"}
+            NR==1 {
+                $(NF+1)="N"
+                $(NF+1)="pval"
+                print
+                next
+            }
+            {
+                logp=$8
+                p=10^(-logp)
+                $(NF+1)="33219"
+                $(NF+1)=p
+                print
+            }' > "/u/home/l/lixinzhe/project-cluo/data/brain_volume_gwas/withN/${base%.txt.gz}_withN.txt"
 
-# call magma:
-/u/home/l/lixinzhe/project-geschwind/software/magma/magma \
-    --bfile ${magma_dir}/aux/g1000_eur \
-    --pval "/u/home/l/lixinzhe/project-cluo/data/brain_volume_gwas/withN/${base%.txt.gz}_withN.txt" use='rsid,pval' ncol='N' \
-    --gene-annot ${magma_dir}/aux/step1.genes.annot \
-    --out ${out_magma_dir}${base%.txt.gz}-grch37
-    
-# get time:
-end=$(date +%s)
-echo "Elapsed: $((end - start)) seconds"
+    # call magma:
+    /u/home/l/lixinzhe/project-geschwind/software/magma/magma \
+        --bfile ${magma_dir}/aux/g1000_eur \
+        --pval "/u/home/l/lixinzhe/project-cluo/data/brain_volume_gwas/withN/${base%.txt.gz}_withN.txt" use='rsid,pval' ncol='N' \
+        --gene-annot ${magma_dir}/aux/step1.genes.annot \
+        --out ${out_magma_dir}${base%.txt.gz}-grch37
+        
+    # get time:
+    end=$(date +%s)
+    echo "Elapsed: $((end - start)) seconds"
 
-# prepare the z-score file:
-Rscript "/u/home/l/lixinzhe/project-github/scDRS-applications/code/scDRS-pipeline/get-magma-stats.R" \
-    "${out_magma_dir}${base%.txt.gz}-grch37.genes.out" \
-    "${magma_dir}/aux/NCBI37.3.gene.loc" \
-    "${out_magma_dir}${base%.txt.gz}-grch37-munge-input.txt"
+    # prepare the z-score file:
+    Rscript "/u/home/l/lixinzhe/project-github/scDRS-applications/code/scDRS-pipeline/get-magma-stats.R" \
+        "${out_magma_dir}${base%.txt.gz}-grch37.genes.out" \
+        "${magma_dir}/aux/NCBI37.3.gene.loc" \
+        "${out_magma_dir}${base%.txt.gz}-grch37-munge-input.txt"
 
-# add new header:
-new_header="gene\tUKB_IDP${base%.txt.gz}"
-sed -i "1 s/.*/$new_header/" "${out_magma_dir}${base%.txt.gz}-grch37-munge-input.txt"
+    # add new header:
+    new_header="gene\tUKB_IDP${base%.txt.gz}"
+    sed -i "1 s/.*/$new_header/" "${out_magma_dir}${base%.txt.gz}-grch37-munge-input.txt"
+fi
 
 # deploy gs munge:
 scdrs munge-gs \
