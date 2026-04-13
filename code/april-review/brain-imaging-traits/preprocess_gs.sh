@@ -68,3 +68,26 @@ for gs_file in /u/home/l/lixinzhe/project-cluo/data/brain_volume_gwas/magma_outp
         '/u/home/l/lixinzhe/project-geschwind/result/met-scDRS/dev-revised/cov/' \
         '/u/project/cluo/lixinzhe/data/BICAN3/unnormalized_genebody_blacklist_allgenes_merged_cov.cov'
 done
+
+###########################################################################################
+######                                    output an intermediate                     ######
+###########################################################################################
+submission_script="/u/home/l/lixinzhe/project-github/developmental-risk-scoring/code/april-review/intermediate-submission.sh"
+
+for gs_file in /u/home/l/lixinzhe/project-cluo/data/brain_volume_gwas/magma_output/0013*-munge-output.txt; do
+    # for each of the gs file submit a job:
+    echo "read gs file:"
+    echo "$gs_file"
+    
+    # submit:
+    qsub ${submission_script} \
+        "/u/project/cluo/lixinzhe/data/BICAN3/unnormalized_genebody_blacklist_allgenes_merged.h5ad" \
+        "${gs_file}" \
+        "mean_var_length" \
+        "arcsine" \
+        "inv_std" \
+        '/u/home/l/lixinzhe/project-geschwind/result/met-scDRS/dev-revised/diagnostics/cov/' \
+        '/u/home/l/lixinzhe/project-geschwind/result/met-scDRS/dev-revised/cov/' \
+        '/u/project/cluo/lixinzhe/data/BICAN3/unnormalized_genebody_blacklist_allgenes_merged_cov.cov' \
+        '/u/project/cluo/lixinzhe/data/BICAN3/unnormalized_genebody_blacklist_allgenes_intermediate.pkl'
+done
