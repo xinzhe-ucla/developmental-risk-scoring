@@ -8,3 +8,11 @@ Rscript /u/home/l/lixinzhe/project-github/developmental-risk-scoring/code/met-sc
     --yaxis "Y_umap" \
     --cutoff 0.1 \
     --out "/u/home/l/lixinzhe/project-geschwind/plot/met-scdrs-brain-volume/"
+
+Rscript /u/home/l/lixinzhe/project-github/developmental-risk-scoring/code/april-review/figure-updates/umap-IDP.R \
+    --dir "/u/home/l/lixinzhe/project-geschwind/port/scratch/met_scdrs_dev/visualize" \
+    --meta_data '/u/home/l/lixinzhe/project-geschwind/port/scratch/met_scdrs_dev/joint_umap_coords_281146.csv' \
+    --xaxis "X_umap" \
+    --yaxis "Y_umap" \
+    --cutoff 0.1 \
+    --out "/u/home/l/lixinzhe/project-geschwind/plot/met-scdrs-brain-volume/"

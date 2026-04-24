@@ -142,8 +142,21 @@ for (age in age_point){
     trait.class <- trait.info$Category[match(rownames(significance.matrix), trait.info$Trait_Identifier)];
 
     # select traits to plot:
-    publication.traits = c('ADHD_Demontis2018', 'BIP_Mullins2021', 'MDD_Howard2019', 'Schizophrenia_Pardinas2018', 'EDU_YEARS', 'Type_1_Diabetes', 'biochemistry_Cholesterol', 'Type_2_Diabetes', 'blood_EOSINOPHIL_COUNT', 'cancer_BREAST')
-
+    publication.traits = c(
+        'ADHD_Demontis2018',
+        'BIP_Mullins2021',
+        'MDD_Howard2019',
+        'UKB_IDP0013',
+        'UKB_IDP0127',
+        'Schizophrenia_Pardinas2018',
+        'EDU_YEARS',
+        'Type_1_Diabetes',
+        'biochemistry_Cholesterol',
+        'Type_2_Diabetes',
+        'blood_EOSINOPHIL_COUNT',
+        'cancer_BREAST'
+        )
+    
     # grab out the cell types:
     cell.types = unique(meta_at_age[, 'adjusted_L3'])
     excitatory = sort(cell.types[grep('^Exc', cell.types)])
