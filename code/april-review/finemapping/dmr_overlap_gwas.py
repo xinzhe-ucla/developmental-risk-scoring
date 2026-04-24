@@ -337,3 +337,96 @@ for file_name in dmr_col.keys():
         annotate_top = True,
         output_path=f'/u/home/l/lixinzhe/project-geschwind/plot/{today}-{file_name}-drd2_locus-zero.png'
     )
+
+###########################################################################################
+######                        Count the number of significant hits in DRD            ######
+###########################################################################################
+import pandas as pd
+import numpy as np
+from scipy.stats import fisher_exact
+
+# -----------------------------
+# 1. Define DRD2 locus
+# -----------------------------
+drd2_chr = "11"
+drd2_start = 113475398 - 250000
+drd2_end   = 113475398 + 250000
+
+# -----------------------------
+# 2. Subset SNPs to DRD2 locus
+# -----------------------------
+snp_df = df.loc[:, ["CHROM", "POS", "PVAL", "ID"]].copy()
+snp_df["CHROM"] = snp_df["CHROM"].astype(str).str.replace("^chr", "", regex=True)
+snp_df["POS"] = snp_df["POS"].astype(int)
+
+snp_df = snp_df.loc[
+    (snp_df["CHROM"] == drd2_chr) &
+    (snp_df["POS"] >= drd2_start) &
+    (snp_df["POS"] <= drd2_end)
+].copy()
+
+snp_df["is_gws"] = snp_df["PVAL"] < 5e-8
+
+# -----------------------------
+# 3. Subset DMRs to DRD2 locus
+# -----------------------------
+for file_name in dmr_col.keys():
+    dmr = dmr_col[file_name].copy()
+    dmr.columns = ["chrom", "start", "end"]
+    dmr["chrom"] = dmr["chrom"].astype(str).str.replace("^chr", "", regex=True)
+    dmr["start"] = dmr["start"].astype(int)
+    dmr["end"] = dmr["end"].astype(int)
+
+    dmr = dmr.loc[
+        (dmr["chrom"] == drd2_chr) &
+        (dmr["end"] >= drd2_start) &
+        (dmr["start"] <= drd2_end)
+    ].copy()
+
+    # -----------------------------
+    # 4. Mark SNPs that fall in any DMR
+    # -----------------------------
+    snp_df["in_dmr"] = False
+
+    if not dmr.empty and not snp_df.empty:
+        hit = pd.Series(False, index=snp_df.index)
+        for start, end in zip(dmr["start"], dmr["end"]):
+            hit |= snp_df["POS"].between(start, end)
+        snp_df["in_dmr"] = hit
+
+    # -----------------------------
+    # 5. Percentage of GWS SNPs in DMR within DRD2
+    # -----------------------------
+    gws = snp_df.loc[snp_df["is_gws"]].copy()
+
+    n_gws = len(gws)
+    n_gws_in_dmr = int(gws["in_dmr"].sum())
+    pct_gws_in_dmr = 100 * n_gws_in_dmr / n_gws if n_gws > 0 else np.nan
+
+    # print(f"DRD2 locus SNPs: {len(snp_df)}")
+    # print(f"DRD2 locus DMRs: {len(dmr)}")
+    # print(f"GWS SNPs in DRD2 locus: {n_gws}")
+    # print(f"GWS SNPs in DMRs within DRD2 locus: {n_gws_in_dmr}")
+    # print(f"Percentage: {pct_gws_in_dmr:.2f}%")
+
+    # -----------------------------
+    # 6. Fisher exact test within DRD2 locus
+    # -----------------------------
+    a = ((snp_df["is_gws"]) & (snp_df["in_dmr"])).sum()
+    b = ((snp_df["is_gws"]) & (~snp_df["in_dmr"])).sum()
+    c = ((~snp_df["is_gws"]) & (snp_df["in_dmr"])).sum()
+    d = ((~snp_df["is_gws"]) & (~snp_df["in_dmr"])).sum()
+
+    table = np.array([[a, b],
+                    [c, d]])
+
+    # print(pd.DataFrame(table,
+    #                 index=["GWS", "Non-GWS"],
+    #                 columns=["In_DMR", "Not_in_DMR"]))
+
+    if table.min() >= 0:
+        odds_ratio, p_value = fisher_exact(table, alternative="greater")
+        print(f"{file_name}")
+        print("percent:", f"{pct_gws_in_dmr:.2f}%")
+        print("One-sided Fisher p-value:", p_value * 5)
+    
