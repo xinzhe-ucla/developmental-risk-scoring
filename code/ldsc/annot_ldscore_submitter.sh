@@ -36,13 +36,11 @@ bfile=$1
 anno=$2
 ldscore_out=$3
 
-for annot in ${anno_out_dir}*.annot.gz; do
-	python ldsc.py \
-		--l2 \
-		--bfile ${bfile} \
-		--ld-wind-cm 1 \
-		--annot ${anno} \
-		--thin-annot \
-		--out "${ldscore_out}" \
-		--print-snps /u/home/l/lixinzhe/project-geschwind/software/ldsc/hm3_no_MHC.list.txt
-done
+python ldsc.py \
+	--l2 \
+	--bfile ${bfile} \
+	--ld-wind-cm 1 \
+	--annot ${anno} \
+	--thin-annot \
+	--out "${ldscore_out}" \
+	--print-snps /u/home/l/lixinzhe/project-geschwind/software/ldsc/hm3_no_MHC.list.txt
