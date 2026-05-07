@@ -215,13 +215,13 @@ for (age in age_point){
             # grey out
             grid.rect(
                 x, y, w, h,
-                gp = gpar(fill = "grey85", col = NA)
+                gp = gpar(fill = "grey85", col = "black", lwd = 2)
             )
             } else {
             # normal heatmap cell
             grid.rect(
                 x, y, w, h,
-                gp = gpar(fill = fill, col = NA)
+                gp = gpar(fill = fill, col = "black", lwd = 2)
             )
             }
         }
