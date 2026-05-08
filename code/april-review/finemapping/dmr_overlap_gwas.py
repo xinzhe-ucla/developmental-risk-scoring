@@ -141,13 +141,14 @@ def plot_locus_manhattan(
 plot_locus_manhattan(df, chrom=11, start=113475398 - 500000, end=113475398+500000, output_path=f"/u/home/l/lixinzhe/project-geschwind/plot/{today}-drd2_locus.png")
 
 # read in the overlap:
-hypo_dmr_overlap_files = os.listdir('/u/home/h/hex002/project-cluo/BICAN/loop_DMR/')
-drd2_hypo_dmr = [f for f in hypo_dmr_overlap_files if f.endswith("DRD2.hypo_dmr_overlap.bed")]
+hypo_dmr_overlap_files = os.listdir('/u/home/h/hex002/project-cluo/BICAN/loop_DMR2/')
+drd2_hypo_dmr = [f for f in hypo_dmr_overlap_files if f.endswith("hypo_dmr_overlap.bed")]
+drd2_hypo_dmr = [f for f in drd2_hypo_dmr if 'DRD2-BACH2' in f]
 
 dmr_col = {}
 for file in drd2_hypo_dmr:
     file_name = re.sub('.hypo_dmr_overlap.bed', '', file)
-    dmr_col[file_name] = pd.read_table(f'/u/home/h/hex002/project-cluo/BICAN/loop_DMR/{file}', sep = '\t', header = None)
+    dmr_col[file_name] = pd.read_table(f'/u/home/h/hex002/project-cluo/BICAN/loop_DMR2/{file}', sep = '\t', header = None)
 
 ###########################################################################################
 ######                                    overlap                                    ######
