@@ -244,4 +244,211 @@ for (age in age_point){
 }
 
 
+###########################################################################################
+######                                    Fixed order                                ######
+###########################################################################################
+library(dplyr)
+# get all age point:
+age_point <- unique(meta$fine2_age_groups)
 
+# find one set of row_order for initiating matrix
+row_order_fixed <- names(risk.score)
+col_order_fixed <- unique(meta$adjusted_L3)
+
+# empty initiation
+significance_matrix_list <- list()
+num_matrix_list <- list()
+
+# for each age, compute proportion for all cell types:
+for (age in age_point) {
+    
+    # cells at age point
+    cells_at_age <- rownames(meta)[meta$fine2_age_groups == age]
+    
+    # subset metadata
+    meta_at_age <- meta[cells_at_age, ]
+    
+    # initialize matrices with fixed row and column order
+    significance_matrix <- data.frame(
+        matrix(
+            NA_real_,
+            nrow = length(row_order_fixed),
+            ncol = length(col_order_fixed),
+            dimnames = list(row_order_fixed, col_order_fixed)
+        ),
+        check.names = FALSE
+    )
+    
+    num_matrix <- data.frame(
+        matrix(
+            NA_real_,
+            nrow = length(row_order_fixed),
+            ncol = length(col_order_fixed),
+            dimnames = list(row_order_fixed, col_order_fixed)
+        ),
+        check.names = FALSE
+    )
+    
+    # for each disease, get the proportion
+    for (disease in row_order_fixed) {
+        
+        age_only_risk_score <- risk.score[[disease]][cells_at_age, "zscore"]
+        age_fdr <- risk.score[[disease]][cells_at_age, "fdr"]
+        
+        # bind metadata to risk score
+        meta_tmp <- meta_at_age
+        meta_tmp$risk_score <- age_only_risk_score
+        meta_tmp$fdr <- age_fdr
+        
+        # calculate proportion
+        proportion_sig <- meta_tmp %>%
+            group_by(adjusted_L3) %>%
+            summarize(
+                n = n(),
+                n_sig = sum(fdr < 0.1, na.rm = TRUE),
+                proportion = n_sig / n,
+                .groups = "drop"
+            )
+        
+        # named vectors
+        sig_by_celltype_in_disease <- proportion_sig$proportion
+        names(sig_by_celltype_in_disease) <- proportion_sig$adjusted_L3
+        
+        number_by_celltype_in_disease <- proportion_sig$n
+        names(number_by_celltype_in_disease) <- proportion_sig$adjusted_L3
+        
+        # align to fixed columns
+        sig_by_celltype_in_disease <- sig_by_celltype_in_disease[col_order_fixed]
+        number_by_celltype_in_disease <- number_by_celltype_in_disease[col_order_fixed]
+        
+        # put into matrices
+        significance_matrix[disease, ] <- sig_by_celltype_in_disease
+        num_matrix[disease, ] <- number_by_celltype_in_disease
+    }
+    
+    # save matrices for this age
+    significance_matrix_list[[age]] <- significance_matrix
+    num_matrix_list[[age]] <- num_matrix
+}
+
+#--------------------------
+# global set of parameters
+#--------------------------
+# find out the set of brain traits:
+# select traits to plot:
+publication.traits = c(
+    'ADHD_Demontis2018',
+    'BIP_Mullins2021',
+    'MDD_Howard2019',
+    'UKB_IDP0013',
+    'UKB_IDP0127',
+    'Schizophrenia_Pardinas2018',
+    'EDU_YEARS',
+    'Type_1_Diabetes',
+    'biochemistry_Cholesterol',
+    'Type_2_Diabetes',
+    'blood_EOSINOPHIL_COUNT',
+    'cancer_BREAST'
+    )
+
+# grab out the cell types:
+cell.types = col_order_fixed
+excitatory = sort(cell.types[grep('^Exc', cell.types)])
+inhibitory = sort(cell.types[grep('^Inh', cell.types)])
+others = setdiff(cell.types, c(excitatory, inhibitory))
+
+cell.type.order = c(
+    excitatory,
+    inhibitory,
+    others
+    )
+
+column.split = c(
+    rep('Excitatory', length(excitatory)),
+    rep('Inhibitory', length(inhibitory)),
+    rep('Others', length(others))
+    )
+
+# make color function
+col.fun <- colorRamp2(
+    c(
+        0,
+        1
+        ),
+    c('white', '#de2d26')
+    );
+heatmap.legend.param <- list(
+    at = c(
+        0,
+        1
+        )
+    );
+
+for (age in names(significance_matrix_list)){
+    # assign num matrix:
+    significance.matrix = significance_matrix_list[[age]]
+    num_matrix = num_matrix_list[[age]]
+    
+    # change the name:
+    rownames(num_matrix) <- rownames(significance.matrix) <- gsub('PASS_', '', rownames(significance.matrix))
+    rownames(num_matrix) <- rownames(significance.matrix) <- gsub('UKB_460K.', '', rownames(significance.matrix))
+    rownames(num_matrix) <- rownames(significance.matrix) <- gsub('cov_', '', rownames(significance.matrix))
+    rownames(num_matrix) <- rownames(significance.matrix) <- gsub('repro_', '', rownames(significance.matrix))
+    
+    # fill NA as zero for the data:
+    num_matrix[is.na(num_matrix)] = 0
+    significance.matrix[is.na(significance.matrix)] = 0
+    
+    # plot:
+    B <- num_matrix[publication.traits, cell.type.order]
+    min_cells_in_bin = 0
+    plot <- Heatmap(
+        as.matrix(significance.matrix)[publication.traits, cell.type.order],
+        name = 'Sig. cells',
+        col = col.fun,
+        rect_gp = gpar(col = "black", lwd = 2),
+        row_order = publication.traits,
+        # cluster_rows = TRUE,
+        column_order = cell.type.order,
+        # cluster_columns = TRUE,
+        width = unit(10 * length(cell.type.order),"mm"),
+        height = unit(10 * length(publication.traits),"mm"),
+        column_names_gp = grid::gpar(fontsize = 15),
+        row_names_gp = grid::gpar(fontsize = 15),
+        # row_split = row.split,
+        column_split = column.split,
+        heatmap_legend_param = heatmap.legend.param,
+        cell_fun = function(j, i, x, y, w, h, fill) {
+            
+            if (B[i, j] <= min_cells_in_bin) {
+            # grey out
+            grid.rect(
+                x, y, w, h,
+                gp = gpar(fill = "grey85", col = "black", lwd = 2)
+            )
+            } else {
+            # normal heatmap cell
+            grid.rect(
+                x, y, w, h,
+                gp = gpar(fill = fill, col = "black", lwd = 2)
+            )
+            }
+        }
+        );
+    plot.size <- draw(plot, heatmap_legend_side = 'left', padding = unit(c(30, 10, 10, 70), "mm"));
+
+    # measure the size of the heatmap:
+    heatmap.width <- convertX(ComplexHeatmap:::width(plot.size), "inch", valueOnly = TRUE);
+    heatmap.height <- convertY(ComplexHeatmap:::height(plot.size), "inch", valueOnly = TRUE)
+
+    # use the measured width and height for drawing:
+    output.path <- paste0('/u/home/l/lixinzhe/project-geschwind/plot/', Sys.Date(), '-developmental-cell-type-brain-traits-proportion-', age, '-only.pdf')
+    pdf(
+        file = output.path,
+        width = heatmap.width,
+        height = heatmap.height
+        );
+    draw(plot, heatmap_legend_side = 'left', padding = unit(c(30, 10, 10, 70), "mm"));
+    dev.off();
+
+}
