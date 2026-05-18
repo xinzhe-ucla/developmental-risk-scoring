@@ -220,6 +220,9 @@ Rscript /u/home/l/lixinzhe/project-github/developmental-risk-scoring/code/ldsc/v
     --ldsc_dir '/u/home/l/lixinzhe/project-geschwind/result/ldsc/brain-dev/partitioned_heritability/Schizophrenia_pardinas2018/' \
     --output "/u/home/l/lixinzhe/project-geschwind/plot/$(date +%F)-scz-pardinas2018-heritability-developmental-cell-type-by-time-point.pdf"
 
+Rscript /u/home/l/lixinzhe/project-github/developmental-risk-scoring/code/ldsc/visualize_enrichment.R \
+    --ldsc_dir '/u/home/l/lixinzhe/project-geschwind/result/ldsc/brain-dev/partitioned_heritability/Schizophrenia_pardinas2018/' \
+    --output "/u/home/l/lixinzhe/project-geschwind/plot/$(date +%F)-scz-pardinas2018-heritability-enrichment-developmental-cell-type-by-time-point.pdf"
 
 ###########################################################################################
 ######                  LDSC Partitioned Heritability ADHD                           ######
@@ -254,3 +257,7 @@ done
 Rscript /u/home/l/lixinzhe/project-github/developmental-risk-scoring/code/ldsc/visualization.R \
     --ldsc_dir '/u/home/l/lixinzhe/project-geschwind/result/ldsc/brain-dev/partitioned_heritability/ADHD_Demontis2018/' \
     --output "/u/home/l/lixinzhe/project-geschwind/plot/$(date +%F)-ADHD_Demontis2018-heritability-developmental-cell-type-by-time-point.pdf"
+
+Rscript /u/home/l/lixinzhe/project-github/developmental-risk-scoring/code/ldsc/visualize_enrichment.R \
+    --ldsc_dir '/u/home/l/lixinzhe/project-geschwind/result/ldsc/brain-dev/partitioned_heritability/ADHD_Demontis2018/' \
+    --output "/u/home/l/lixinzhe/project-geschwind/plot/$(date +%F)-ADHD_Demontis2018-heritability-enrichment-developmental-cell-type-by-time-point.pdf"
