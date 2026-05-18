@@ -7,6 +7,7 @@ from datetime import date
 today = date.today()
 import os
 import re
+from tqdm import tqdm
 
 ###########################################################################################
 ######                             Plot out the DRD2 region                          ######
@@ -134,11 +135,14 @@ def plot_locus_manhattan(
                 fontsize=8,
             )
     plt.tight_layout()
-    plt.savefig(output_path, dpi=300, bbox_inches="tight")
+    if output_path.endswith('pdf'):
+        plt.savefig(output_path, bbox_inches="tight")
+    else:
+        plt.savefig(output_path, dpi=300, bbox_inches="tight")
     plt.close()
     return plot_df
     
-plot_locus_manhattan(df, chrom=11, start=113475398 - 500000, end=113475398+500000, output_path=f"/u/home/l/lixinzhe/project-geschwind/plot/{today}-drd2_locus.png")
+plot_locus_manhattan(df, chrom=11, start=113475398 - 500000, end=113475398+500000, output_path=f"/u/home/l/lixinzhe/project-geschwind/plot/{today}-drd2_locus.pdf")
 
 # read in the overlap:
 hypo_dmr_overlap_files = os.listdir('/u/home/h/hex002/project-cluo/BICAN/loop_DMR2/')
@@ -321,7 +325,11 @@ def plot_locus_manhattan_with_dmr(
     ax.set_title(f"chr{chrom}:{start:,}-{end:,}")
 
     plt.tight_layout()
-    plt.savefig(output_path, dpi=dpi, bbox_inches="tight")
+    
+    if output_path.endswith('pdf'):
+        plt.savefig(output_path, bbox_inches="tight")
+    else:
+        plt.savefig(output_path, dpi=dpi, bbox_inches="tight")
     plt.close()
 
     return plot_df, dmr_sub
@@ -336,7 +344,7 @@ for file_name in dmr_col.keys():
         window=250000,
         dmr_is_bed = True,
         annotate_top = True,
-        output_path=f'/u/home/l/lixinzhe/project-geschwind/plot/{today}-{file_name}-drd2_locus-zero.png'
+        output_path=f'/u/home/l/lixinzhe/project-geschwind/plot/{today}-{file_name}-drd2_locus-zero.pdf'
     )
 
 ###########################################################################################
@@ -430,4 +438,130 @@ for file_name in dmr_col.keys():
         print(f"{file_name}")
         print("percent:", f"{pct_gws_in_dmr:.2f}%")
         print("One-sided Fisher p-value:", p_value * 5)
-    
+
+# --------------------------------
+# provide global estimate:
+# --------------------------------
+snp_df = df.loc[:, ["CHROM", "POS", "PVAL", "ID"]].copy()
+snp_df["CHROM"] = snp_df["CHROM"].astype(str).str.replace("^chr", "", regex=True)
+snp_df["POS"] = snp_df["POS"].astype(int)
+snp_df["is_gws"] = snp_df["PVAL"] < 5e-8
+
+for file_name in dmr_col.keys():
+    dmr = dmr_col[file_name].copy()
+    dmr.columns = ["chrom", "start", "end"]
+    dmr["chrom"] = dmr["chrom"].astype(str).str.replace("^chr", "", regex=True)
+    dmr["start"] = dmr["start"].astype(int)
+    dmr["end"] = dmr["end"].astype(int)
+
+    # -----------------------------
+    # 4. Mark SNPs that fall in any DMR
+    # -----------------------------
+    snp_df["in_dmr"] = False
+
+    if not dmr.empty and not snp_df.empty:
+        hit = pd.Series(False, index=snp_df.index)
+        for start, end in tqdm(zip(dmr["start"], dmr["end"]), total = len(dmr), desc = 'checking overlap for each DMRs'):
+            hit |= snp_df["POS"].between(start, end)
+        snp_df["in_dmr"] = hit
+
+    # -----------------------------
+    # 5. Percentage of GWS SNPs in DMR within DRD2
+    # -----------------------------
+    gws = snp_df.loc[snp_df["is_gws"]].copy()
+
+    n_gws = len(gws)
+    n_gws_in_dmr = int(gws["in_dmr"].sum())
+    pct_gws_in_dmr = 100 * n_gws_in_dmr / n_gws if n_gws > 0 else np.nan
+
+    # print(f"DRD2 locus SNPs: {len(snp_df)}")
+    # print(f"DRD2 locus DMRs: {len(dmr)}")
+    # print(f"GWS SNPs in DRD2 locus: {n_gws}")
+    # print(f"GWS SNPs in DMRs within DRD2 locus: {n_gws_in_dmr}")
+    # print(f"Percentage: {pct_gws_in_dmr:.2f}%")
+
+    # -----------------------------
+    # 6. Fisher exact test within DRD2 locus
+    # -----------------------------
+    a = ((snp_df["is_gws"]) & (snp_df["in_dmr"])).sum()
+    b = ((snp_df["is_gws"]) & (~snp_df["in_dmr"])).sum()
+    c = ((~snp_df["is_gws"]) & (snp_df["in_dmr"])).sum()
+    d = ((~snp_df["is_gws"]) & (~snp_df["in_dmr"])).sum()
+
+    table = np.array([[a, b],
+                    [c, d]])
+
+    # print(pd.DataFrame(table,
+    #                 index=["GWS", "Non-GWS"],
+    #                 columns=["In_DMR", "Not_in_DMR"]))
+
+    if table.min() >= 0:
+        odds_ratio, p_value = fisher_exact(table, alternative="greater")
+        print(f"{file_name}")
+        print("percent:", f"{pct_gws_in_dmr:.2f}%")
+        print("One-sided Fisher p-value:", p_value * 5)
+
+# 1m_Inh-MSN-DRD2-BACH2
+# percent: 4.56%
+# One-sided Fisher p-value: 0.5047951658835763
+# checking overlap for each DMRs: 100%|████████████████████████████████████████████████████████████████████████████████████████| 15642/15642 [04:18<00:00, 60.42it/s]
+# 2T_Inh-MSN-DRD2-BACH2
+# percent: 1.01%
+# One-sided Fisher p-value: 0.5816078658769785
+# checking overlap for each DMRs: 100%|████████████████████████████████████████████████████████████████████████████████████| 359805/359805 [1:44:01<00:00, 57.64it/s]
+# 3T_Inh-MSN-DRD2-BACH2
+# percent: 20.91%
+# One-sided Fisher p-value: 2.1718494007089375e-18
+# checking overlap for each DMRs: 100%|████████████████████████████████████████████████████████████████████████████████████| 327114/327114 [1:31:56<00:00, 59.30it/s]
+# 4-7m_Inh-MSN-DRD2-BACH2
+# percent: 16.82%
+# One-sided Fisher p-value: 1.2020602318469613e-13
+# checking overlap for each DMRs: 100%|████████████████████████████████████████████████████████████████████████████████████| 415947/415947 [1:57:04<00:00, 59.22it/s]
+# adult_Inh-MSN-DRD2-BACH2
+# percent: 19.27%
+# One-sided Fisher p-value: 2.5065213806710035e-08
+
+###########################################################################################
+######                                    Make plots                                 ######
+###########################################################################################
+import pandas as pd
+import matplotlib.pyplot as plt
+
+plot_df = pd.DataFrame({
+    "time": ['2T', '3T', '1 month', '4-7 months', 'adult'],
+    "percent": [1.01, 20.91, 4.56, 16.83, 19.27],
+    "pval": [0.5816078658769785, 2.1718494007089375e-18, 0.5047951658835763, 1.2020602318469613e-13, 2.5065213806710035e-08]
+})
+
+plot_df.to_csv(f'/u/home/l/lixinzhe/project-geschwind/plot/{today}-genome-wide-significant-overlap-pval.csv')
+
+fig, ax = plt.subplots(figsize=(7, 5))
+
+bars = ax.bar(
+    plot_df["time"],
+    plot_df["percent"]
+)
+
+ax.set_xlabel("Time")
+ax.set_ylabel("Percent overlap")
+ax.set_title("Genome-wide significant overlap")
+
+# add percent labels above bars
+for bar, percent in zip(bars, plot_df["percent"]):
+    ax.text(
+        bar.get_x() + bar.get_width() / 2,
+        bar.get_height(),
+        f"{percent:.2f}%",
+        ha="center",
+        va="bottom",
+        fontsize=9
+    )
+
+fig.tight_layout()
+
+plt.savefig(
+    f"/u/home/l/lixinzhe/project-geschwind/plot/{today}-DRD2-BACH2genome-wide-significant-overlap-barplot.pdf",
+    bbox_inches="tight"
+)
+
+plt.show()
