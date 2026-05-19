@@ -17,17 +17,22 @@ from tqdm import tqdm
 # wget https://figshare.com/ndownloader/files/34517861
 
 # load in the schizophrenia gwas:
+# scz_gwas = pd.read_csv(
+#     '/u/home/l/lixinzhe/project-cluo/data/scz_gwas/PGC3_SCZ_wave3.primary.autosome.public.v3.vcf.tsv',
+#     sep="\t",
+#     comment = '#'
+#     )
+
 scz_gwas = pd.read_csv(
-    '/u/home/l/lixinzhe/project-cluo/data/scz_gwas/PGC3_SCZ_wave3.primary.autosome.public.v3.vcf.tsv',
-    sep="\t",
+    '/u/home/l/lixinzhe/project-geschwind/data/GWAS/Schizophrenia_pardinas2018',
+    sep = ' ',
     comment = '#'
     )
+scz_gwas.columns = ['ID', 'CHROM', "POS", 'A1', 'A2', 'OR', 'SE', 'PVAL', 'DIRECTION']
 
 ###########################################################################################
 ######                              look at near the DRD2 region                     ######
 ###########################################################################################
-
-
 # columns expected: CHR, BP, P
 df = scz_gwas.dropna(subset=["CHROM", "POS", "PVAL", "ID"]).copy()[["CHROM", "POS", "PVAL", "ID"]]
 
@@ -142,13 +147,13 @@ def plot_locus_manhattan(
     plt.close()
     return plot_df
     
-plot_locus_manhattan(df, chrom=11, start=113475398 - 500000, end=113475398+500000, output_path=f"/u/home/l/lixinzhe/project-geschwind/plot/{today}-drd2_locus.pdf")
+plot_locus_manhattan(df, chrom=11, start=113280327 - 500000, end=113346120 + 500000, output_path=f"/u/home/l/lixinzhe/project-geschwind/plot/{today}-drd2_locus.pdf")
 
 # read in the overlap:
 hypo_dmr_overlap_files = os.listdir('/u/scratch/l/lixinzhe/tmp-file/DMR/')
 drd2_hypo_dmr = [f for f in hypo_dmr_overlap_files if f.endswith("hypo_dmr_overlap.hg19.dmr.bed")]
 drd2_hypo_dmr = [f for f in drd2_hypo_dmr if 'DRD2-BACH2' in f]
-drd2_hypo_dmr = ['2T_Inh-MSN-eMSN.hypo_dmr_overlap.hg19.dmr.bed'] + drd2_hypo_dmr
+# drd2_hypo_dmr = ['2T_Inh-MSN-eMSN.hypo_dmr_overlap.hg19.dmr.bed'] + drd2_hypo_dmr
 
 dmr_col = {}
 for file in drd2_hypo_dmr:
@@ -342,7 +347,7 @@ for file_name in dmr_col.keys():
         df,
         dmr_df = dmr_col[file_name],
         chrom=11,
-        center=113280337,
+        center=113_280_327,
         window=250000,
         dmr_is_bed = True,
         annotate_top = True,
@@ -360,8 +365,8 @@ from scipy.stats import fisher_exact
 # 1. Define DRD2 locus
 # -----------------------------
 drd2_chr = "11"
-drd2_start = 113280337 - 250000
-drd2_end   = 113346413 + 250000
+drd2_start = 113_280_327 - 250000
+drd2_end   = 113_346_120 + 250000
 
 # -----------------------------
 # 2. Subset SNPs to DRD2 locus
@@ -439,4 +444,4 @@ for file_name in dmr_col.keys():
         odds_ratio, p_value = fisher_exact(table, alternative="greater")
         print(f"{file_name}")
         print("percent:", f"{pct_gws_in_dmr:.2f}%")
-        print("One-sided Fisher p-value:", p_value * 5)
+        print("One-sided Fisher p-value:", p_value)
