@@ -12,6 +12,7 @@ from scipy.stats import fisher_exact
 from statsmodels.stats.multitest import multipletests
 import re
 from tqdm import tqdm
+import seaborn as sns
 
 ###########################################################################################
 ######                             Plot out the DRD2 region                          ######
@@ -22,10 +23,11 @@ from tqdm import tqdm
 
 # load in the schizophrenia gwas:
 scz_gwas = pd.read_csv(
-    '/u/home/l/lixinzhe/project-cluo/data/scz_gwas/PGC3_SCZ_wave3.primary.autosome.public.v3.vcf.tsv',
-    sep="\t",
+    '/u/home/l/lixinzhe/project-geschwind/data/GWAS/Schizophrenia_pardinas2018',
+    sep = ' ',
     comment = '#'
     )
+scz_gwas.columns = ['ID', 'CHROM', "POS", 'A1', 'A2', 'OR', 'SE', 'PVAL', 'DIRECTION']
 scz_finemap = pd.read_csv('/u/home/l/lixinzhe/project-geschwind/port/finemapped-scz/SCZ-hg19-finemapped-snps.csv', sep = ',')
 
 # columns expected: CHR, BP, P
@@ -37,7 +39,7 @@ hypo_dmr_overlap_files = os.listdir('/u/scratch/l/lixinzhe/tmp-file/DMR/')
 drd2_hypo_dmr = [f for f in hypo_dmr_overlap_files if f.endswith("hypo_dmr_overlap.hg19.dmr.bed")]
 drd2_hypo_dmr = [f for f in drd2_hypo_dmr if 'DRD2' in f]
 # drd2_hypo_dmr = [f for f in drd2_hypo_dmr if 'DRD2-BACH2' in f]
-drd2_hypo_dmr = ['2T_Inh-MSN-eMSN.hypo_dmr_overlap.hg19.dmr.bed'] + drd2_hypo_dmr
+# drd2_hypo_dmr = ['2T_Inh-MSN-eMSN.hypo_dmr_overlap.hg19.dmr.bed'] + drd2_hypo_dmr
 
 dmr_col = {}
 for file in drd2_hypo_dmr:
@@ -158,9 +160,8 @@ def run_bedtools_intersect_count(
         "n_gws_in_dmr": n_gws_in_dmr,
         "pct_gws_in_dmr": pct_gws_in_dmr,
         "odds_ratio": odds_ratio,
-        "p_value": p_value,
-        "p_value_bonf": multipletests(p_value, method="bonferroni")[1],
-    }
+        "p_value": p_value
+        }
 
 results = []
 
@@ -172,17 +173,101 @@ for file_name, dmr in tqdm(dmr_col.items(), desc="DMR files"):
     )
     results.append(res)
 
-pd.set_option('display.max_columns', None)
+# get the multiple tested pvalue:
 result_df = pd.DataFrame(results)
+result_df['p_value_bonf'] = multipletests(result_df.p_value, method = 'bonferroni')[1]
+pd.set_option('display.max_columns', None)
 print(result_df)
+
+###########################################################################################
+######                                    Visualization                              ######
+###########################################################################################
+# visualize the %overlap for each cell type for each locus
+plot_df = result_df.copy()
+plot_df['time_point'] = [re.sub('_.*', '', f) for f in plot_df.file_name]
+plot_df['cell_type'] = [re.sub('.*_Inh-', '', f) for f in plot_df.file_name]
+plot_df['percent_dmr_in_gws'] = plot_df['a_gws_in_dmr'] / (plot_df['a_gws_in_dmr'] + plot_df['c_non_gws_in_dmr']) * 100
+
+# specify order:
+time_order = ['2T', '3T', '1m', '4-7m', 'adult']
+hue_order = sorted(plot_df["cell_type"].dropna().unique())
+
+plt.figure(figsize=(10, 5))
+plot_df_plot = plot_df.copy()
+
+plot_df_plot["time_point"] = pd.Categorical(
+    plot_df_plot["time_point"],
+    categories=time_order,
+    ordered=True
+)
+
+def format_p(p):
+    if pd.isna(p):
+        return "p=NA"
+    elif p < 0.001:
+        return f"p={p:.1e}"
+    else:
+        return f"p={p:.3f}"
+
+plot_df_plot["p_label"] = plot_df_plot["p_value"].apply(format_p)
+
+plt.figure(figsize=(10, 5))
+
+ax = sns.barplot(
+    data=plot_df_plot,
+    x="time_point",
+    y="odds_ratio",
+    hue="cell_type",
+    order=time_order,
+    hue_order=hue_order,
+    errorbar=None
+)
+
+# Add p-value labels by matching each container to one hue level
+for container, cell_type in zip(ax.containers, hue_order):
+
+    labels = []
+
+    for time_point in time_order:
+        tmp = plot_df_plot[
+            (plot_df_plot["time_point"] == time_point) &
+            (plot_df_plot["cell_type"] == cell_type)
+        ]
+
+        if len(tmp) == 1:
+            labels.append(tmp["p_label"].iloc[0])
+        else:
+            labels.append("")
+
+    ax.bar_label(
+        container,
+        labels=labels,
+        padding=3,
+        fontsize=8,
+        rotation=90
+    )
+
+plt.axhline(1, linestyle="--", linewidth=1)
+plt.xlabel("Time point")
+plt.ylabel("Fisher odds ratio")
+plt.title("SCZ finemapped credible SNP enrichment in DMRs")
+plt.xticks(rotation=45, ha="right")
+plt.legend(title="Cell type", bbox_to_anchor=(1.05, 1), loc="upper left")
+
+ymax = plot_df_plot["odds_ratio"].replace([np.inf, -np.inf], np.nan).max()
+plt.ylim(0, ymax * 1.3)
+
+plt.tight_layout()
+plt.savefig(f"/u/home/l/lixinzhe/project-geschwind/plot/{today}_OR_finemapped_in_dmr_by_time_celltype.pdf", bbox_inches="tight")
+plt.show()
 
 ###########################################################################################
 ######                                    DRD2 region                                ######
 ###########################################################################################
 # for DRD2 region:
 drd2_chr = '11'
-drd2_start = 113_280_337 - 250000
-drd2_end   = 113_346_413 + 250000
+drd2_start = 113_280_327 - 250000
+drd2_end   = 113_346_120 + 250000
 
 # -----------------------------
 # 1. Subset SNPs to DRD2 locus
@@ -204,12 +289,101 @@ print("Number of GWS SNPs in DRD2 region:", int(snp_drd2["is_gws"].sum()))
 results = []
 
 for file_name, dmr in tqdm(dmr_col.items(), desc="DMR files"):
+    dmr_drd2 = dmr.copy()
+    dmr_drd2.columns = ['CHROM', 'START', 'END']
+    dmr_drd2 = dmr_drd2.loc[
+        (dmr_drd2['CHROM'] == 'chr11')
+        & (dmr_drd2['START'] >= drd2_start)
+        & (dmr_drd2['END'] <= drd2_end)
+    ]
     res = run_bedtools_intersect_count(
         snp_df=snp_drd2,
-        dmr=dmr,
+        dmr=dmr_drd2,
         file_name=file_name
     )
     results.append(res)
 
-result_df = pd.DataFrame(results)
-print(result_df)
+drd2_locus_result_df = pd.DataFrame(results)
+
+###########################################################################################
+######                                    Visualization                              ######
+###########################################################################################
+# visualize the %overlap for each cell type for each locus
+plot_df = drd2_locus_result_df.copy()
+plot_df['time_point'] = [re.sub('_.*', '', f) for f in plot_df.file_name]
+plot_df['cell_type'] = [re.sub('.*_Inh-', '', f) for f in plot_df.file_name]
+plot_df['percent_dmr_in_gws'] = plot_df['a_gws_in_dmr'] / (plot_df['a_gws_in_dmr'] + plot_df['c_non_gws_in_dmr']) * 100
+print(plot_df)
+
+# specify order:
+time_order = ['2T', '3T', '1m', '4-7m', 'adult']
+hue_order = sorted(plot_df["cell_type"].dropna().unique())
+
+plt.figure(figsize=(10, 5))
+plot_df_plot = plot_df.copy()
+
+plot_df_plot["time_point"] = pd.Categorical(
+    plot_df_plot["time_point"],
+    categories=time_order,
+    ordered=True
+)
+
+def format_p(p):
+    if pd.isna(p):
+        return "p=NA"
+    elif p < 0.001:
+        return f"p={p:.1e}"
+    else:
+        return f"p={p:.3f}"
+
+plot_df_plot["p_label"] = plot_df_plot["p_value"].apply(format_p)
+
+plt.figure(figsize=(10, 5))
+
+ax = sns.barplot(
+    data=plot_df_plot,
+    x="time_point",
+    y="odds_ratio",
+    hue="cell_type",
+    order=time_order,
+    hue_order=hue_order,
+    errorbar=None
+)
+
+# Add p-value labels by matching each container to one hue level
+for container, cell_type in zip(ax.containers, hue_order):
+
+    labels = []
+
+    for time_point in time_order:
+        tmp = plot_df_plot[
+            (plot_df_plot["time_point"] == time_point) &
+            (plot_df_plot["cell_type"] == cell_type)
+        ]
+
+        if len(tmp) == 1:
+            labels.append(tmp["p_label"].iloc[0])
+        else:
+            labels.append("")
+
+    ax.bar_label(
+        container,
+        labels=labels,
+        padding=3,
+        fontsize=8,
+        rotation=90
+    )
+
+plt.axhline(1, linestyle="--", linewidth=1)
+plt.xlabel("Time point")
+plt.ylabel("Fisher odds ratio")
+plt.title("SCZ finemapped credible SNP enrichment in DMRs at DRD2 locus")
+plt.xticks(rotation=45, ha="right")
+plt.legend(title="Cell type", bbox_to_anchor=(1.05, 1), loc="upper left")
+
+ymax = plot_df_plot["odds_ratio"].replace([np.inf, -np.inf], np.nan).max()
+plt.ylim(0, ymax * 1.3)
+
+plt.tight_layout()
+plt.savefig(f"/u/home/l/lixinzhe/project-geschwind/plot/{today}_OR_finemapped_in_DRD2_locus_dmr_by_time_celltype.pdf", bbox_inches="tight")
+plt.show()
