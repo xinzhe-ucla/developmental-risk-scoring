@@ -9,9 +9,9 @@ import os
 import tempfile
 import subprocess
 from scipy.stats import fisher_exact
+from statsmodels.stats.multitest import multipletests
 import re
 from tqdm import tqdm
-import seaborn as sns
 
 ###########################################################################################
 ######                             Plot out the DRD2 region                          ######
@@ -26,9 +26,11 @@ scz_gwas = pd.read_csv(
     sep="\t",
     comment = '#'
     )
+scz_finemap = pd.read_csv('/u/home/l/lixinzhe/project-geschwind/port/finemapped-scz/SCZ-hg19-finemapped-snps.csv', sep = ',')
+
 # columns expected: CHR, BP, P
 df = scz_gwas.dropna(subset=["CHROM", "POS", "PVAL", "ID"]).copy()[["CHROM", "POS", "PVAL", "ID"]]
-df['is_gws'] = df["PVAL"] < 5e-8
+df['is_gws'] = df["ID"].isin(scz_finemap.rsid)
 
 # read in the overlap:
 hypo_dmr_overlap_files = os.listdir('/u/scratch/l/lixinzhe/tmp-file/DMR/')
@@ -42,6 +44,7 @@ for file in drd2_hypo_dmr:
     file_name = re.sub('.hypo_dmr_overlap.hg19.dmr.bed', '', file)
     dmr_col[file_name] = pd.read_table(f'/u/scratch/l/lixinzhe/tmp-file/DMR/{file}', sep = '\t', header = None)
     print(file_name)
+
 
 ###########################################################################################
 ######                                Define function for intersection               ######
@@ -156,7 +159,7 @@ def run_bedtools_intersect_count(
         "pct_gws_in_dmr": pct_gws_in_dmr,
         "odds_ratio": odds_ratio,
         "p_value": p_value,
-        "p_value_bonf_5": p_value * 5,
+        "p_value_bonf": multipletests(p_value, method="bonferroni")[1],
     }
 
 results = []
@@ -174,74 +177,39 @@ result_df = pd.DataFrame(results)
 print(result_df)
 
 ###########################################################################################
-######                                    Plot                                       ######
+######                                    DRD2 region                                ######
 ###########################################################################################
-plot_df = result_df.copy()
-plot_df['time_point'] = [re.sub('_.*', '', f) for f in plot_df.file_name]
-plot_df['cell_type'] = [re.sub('.*_Inh-', '', f) for f in plot_df.file_name]
-plot_df['percent_dmr_in_gws'] = plot_df['a_gws_in_dmr'] / (plot_df['a_gws_in_dmr'] + plot_df['c_non_gws_in_dmr']) * 100
+# for DRD2 region:
+drd2_chr = '11'
+drd2_start = 113_280_337 - 250000
+drd2_end   = 113_346_413 + 250000
 
-# specify order:
-time_order = ['2T', '3T', '1m', '4-7m', 'adult']
-plot_df["time_point"] = pd.Categorical(
-    plot_df["time_point"],
-    categories=time_order,
-    ordered=True
-)
+# -----------------------------
+# 1. Subset SNPs to DRD2 locus
+# -----------------------------
+snp_drd2 = df.copy()
+snp_drd2["CHROM"] = clean_chrom(snp_drd2["CHROM"])
+snp_drd2["POS"] = snp_drd2["POS"].astype(int)
+snp_drd2["is_gws"] = snp_drd2["is_gws"].astype(bool)
 
-plt.figure(figsize=(10, 5))
-sns.barplot(
-    data=plot_df,
-    x="time_point",
-    y="pct_gws_in_dmr",
-    hue="cell_type",
-    errorbar=None
-)
+snp_drd2 = snp_drd2.loc[
+    (snp_drd2["CHROM"] == drd2_chr)
+    & (snp_drd2["POS"] >= drd2_start)
+    & (snp_drd2["POS"] <= drd2_end)
+].copy()
 
-plt.xlabel("Time point")
-plt.ylabel("% GWS variants/loci in DMR")
-plt.title("Overlap between SCZ GWS loci and DMRs")
-plt.xticks(rotation=45, ha="right")
-plt.legend(title="Cell type", bbox_to_anchor=(1.05, 1), loc="upper left")
+print("Number of SNPs in DRD2 region:", len(snp_drd2))
+print("Number of GWS SNPs in DRD2 region:", int(snp_drd2["is_gws"].sum()))
 
-plt.tight_layout()
-plt.savefig(f"/u/home/l/lixinzhe/project-geschwind/plot/{today}_pct_gws_in_dmr_by_time_celltype.pdf", bbox_inches="tight")
-plt.show()
+results = []
 
-# ###########################################################################################
-# ######                      Function test at DRD2 locus                              ######
-# ###########################################################################################
+for file_name, dmr in tqdm(dmr_col.items(), desc="DMR files"):
+    res = run_bedtools_intersect_count(
+        snp_df=snp_drd2,
+        dmr=dmr,
+        file_name=file_name
+    )
+    results.append(res)
 
-# drd2_chr = "11"
-# drd2_start = 113475398 - 250000
-# drd2_end   = 113475398 + 250000
-
-# # -----------------------------
-# # 1. Subset SNPs to DRD2 locus
-# # -----------------------------
-# snp_drd2 = df.copy()
-# snp_drd2["CHROM"] = clean_chrom(snp_drd2["CHROM"])
-# snp_drd2["POS"] = snp_drd2["POS"].astype(int)
-# snp_drd2["is_gws"] = snp_drd2["is_gws"].astype(bool)
-
-# snp_drd2 = snp_drd2.loc[
-#     (snp_drd2["CHROM"] == drd2_chr)
-#     & (snp_drd2["POS"] >= drd2_start)
-#     & (snp_drd2["POS"] <= drd2_end)
-# ].copy()
-
-# print("Number of SNPs in DRD2 region:", len(snp_drd2))
-# print("Number of GWS SNPs in DRD2 region:", int(snp_drd2["is_gws"].sum()))
-
-# results = []
-
-# for file_name, dmr in tqdm(dmr_col.items(), desc="DMR files"):
-#     res = run_bedtools_intersect_count(
-#         snp_df=snp_drd2,
-#         dmr=dmr,
-#         file_name=file_name
-#     )
-#     results.append(res)
-
-# result_df = pd.DataFrame(results)
-# function test completed, identical to manual implementation
+result_df = pd.DataFrame(results)
+print(result_df)

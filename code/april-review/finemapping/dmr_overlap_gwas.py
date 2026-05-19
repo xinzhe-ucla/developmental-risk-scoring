@@ -145,15 +145,16 @@ def plot_locus_manhattan(
 plot_locus_manhattan(df, chrom=11, start=113475398 - 500000, end=113475398+500000, output_path=f"/u/home/l/lixinzhe/project-geschwind/plot/{today}-drd2_locus.pdf")
 
 # read in the overlap:
-hypo_dmr_overlap_files = os.listdir('/u/home/h/hex002/project-cluo/BICAN/loop_DMR2/')
-drd2_hypo_dmr = [f for f in hypo_dmr_overlap_files if f.endswith("hypo_dmr_overlap.bed")]
+hypo_dmr_overlap_files = os.listdir('/u/scratch/l/lixinzhe/tmp-file/DMR/')
+drd2_hypo_dmr = [f for f in hypo_dmr_overlap_files if f.endswith("hypo_dmr_overlap.hg19.dmr.bed")]
 drd2_hypo_dmr = [f for f in drd2_hypo_dmr if 'DRD2-BACH2' in f]
-drd2_hypo_dmr = ['2T_Inh-MSN-eMSN.hypo_dmr_overlap.bed'] + drd2_hypo_dmr
+drd2_hypo_dmr = ['2T_Inh-MSN-eMSN.hypo_dmr_overlap.hg19.dmr.bed'] + drd2_hypo_dmr
 
 dmr_col = {}
 for file in drd2_hypo_dmr:
-    file_name = re.sub('.hypo_dmr_overlap.bed', '', file)
-    dmr_col[file_name] = pd.read_table(f'/u/home/h/hex002/project-cluo/BICAN/loop_DMR2/{file}', sep = '\t', header = None)
+    file_name = re.sub('.hypo_dmr_overlap.hg19.dmr.bed', '', file)
+    dmr_col[file_name] = pd.read_table(f'/u/scratch/l/lixinzhe/tmp-file/DMR/{file}', sep = '\t', header = None)
+    print(file_name)
 
 ###########################################################################################
 ######                                    overlap                                    ######
@@ -341,7 +342,7 @@ for file_name in dmr_col.keys():
         df,
         dmr_df = dmr_col[file_name],
         chrom=11,
-        center=113475398,
+        center=113280337,
         window=250000,
         dmr_is_bed = True,
         annotate_top = True,
@@ -359,8 +360,8 @@ from scipy.stats import fisher_exact
 # 1. Define DRD2 locus
 # -----------------------------
 drd2_chr = "11"
-drd2_start = 113475398 - 250000
-drd2_end   = 113475398 + 250000
+drd2_start = 113280337 - 250000
+drd2_end   = 113346413 + 250000
 
 # -----------------------------
 # 2. Subset SNPs to DRD2 locus
