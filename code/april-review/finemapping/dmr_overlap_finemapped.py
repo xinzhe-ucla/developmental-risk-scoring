@@ -23,11 +23,19 @@ import seaborn as sns
 
 # load in the schizophrenia gwas:
 scz_gwas = pd.read_csv(
-    '/u/home/l/lixinzhe/project-geschwind/data/GWAS/Schizophrenia_pardinas2018',
-    sep = ' ',
+    '/u/home/l/lixinzhe/project-cluo/data/scz_gwas/PGC3_SCZ_wave3.primary.autosome.public.v3.vcf.tsv',
+    sep="\t",
     comment = '#'
     )
-scz_gwas.columns = ['ID', 'CHROM', "POS", 'A1', 'A2', 'OR', 'SE', 'PVAL', 'DIRECTION']
+
+# scz_gwas = pd.read_csv(
+#     '/u/home/l/lixinzhe/project-geschwind/data/GWAS/Schizophrenia_pardinas2018',
+#     sep = ' ',
+#     comment = '#'
+#     )
+# scz_gwas.columns = ['ID', 'CHROM', "POS", 'A1', 'A2', 'OR', 'SE', 'PVAL', 'DIRECTION']
+
+# load in the fine map results:
 scz_finemap = pd.read_csv('/u/home/l/lixinzhe/project-geschwind/port/finemapped-scz/SCZ-hg19-finemapped-snps.csv', sep = ',')
 
 # columns expected: CHR, BP, P
