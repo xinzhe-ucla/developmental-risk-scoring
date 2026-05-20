@@ -21,18 +21,18 @@ import seaborn as sns
 # wget https://figshare.com/ndownloader/files/34517861
 
 # load in the schizophrenia gwas:
-scz_gwas = pd.read_csv(
-    '/u/home/l/lixinzhe/project-cluo/data/scz_gwas/PGC3_SCZ_wave3.primary.autosome.public.v3.vcf.tsv',
-    sep="\t",
-    comment = '#'
-    )
-
 # scz_gwas = pd.read_csv(
-#     '/u/home/l/lixinzhe/project-geschwind/data/GWAS/Schizophrenia_pardinas2018',
-#     sep = ' ',
+#     '/u/home/l/lixinzhe/project-cluo/data/scz_gwas/PGC3_SCZ_wave3.primary.autosome.public.v3.vcf.tsv',
+#     sep="\t",
 #     comment = '#'
 #     )
-# scz_gwas.columns = ['ID', 'CHROM', "POS", 'A1', 'A2', 'OR', 'SE', 'PVAL', 'DIRECTION']
+
+scz_gwas = pd.read_csv(
+    '/u/home/l/lixinzhe/project-geschwind/data/GWAS/Schizophrenia_pardinas2018',
+    sep = ' ',
+    comment = '#'
+    )
+scz_gwas.columns = ['ID', 'CHROM', "POS", 'A1', 'A2', 'OR', 'SE', 'PVAL', 'DIRECTION']
 
 # columns expected: CHR, BP, P
 df = scz_gwas.dropna(subset=["CHROM", "POS", "PVAL", "ID"]).copy()[["CHROM", "POS", "PVAL", "ID"]]
@@ -215,3 +215,47 @@ plt.legend(title="Cell type", bbox_to_anchor=(1.05, 1), loc="upper left")
 plt.tight_layout()
 plt.savefig(f"/u/home/l/lixinzhe/project-geschwind/plot/{today}_pct_gws_in_dmr_by_time_celltype.pdf", bbox_inches="tight")
 plt.show()
+
+###########################################################################################
+######                                    selected region                            ######
+###########################################################################################
+drd2_chr = "11"
+drd2_start = 113_280_327 - 250000
+drd2_end   = 113_346_120 + 250000
+
+# -----------------------------
+# 1. Subset SNPs to DRD2 locus
+# -----------------------------
+snp_drd2 = df.copy()
+snp_drd2["CHROM"] = clean_chrom(snp_drd2["CHROM"])
+snp_drd2["POS"] = snp_drd2["POS"].astype(int)
+snp_drd2["is_gws"] = snp_drd2["is_gws"].astype(bool)
+
+snp_drd2 = snp_drd2.loc[
+    (snp_drd2["CHROM"] == drd2_chr)
+    & (snp_drd2["POS"] >= drd2_start)
+    & (snp_drd2["POS"] <= drd2_end)
+].copy()
+
+print("Number of SNPs in DRD2 region:", len(snp_drd2))
+print("Number of GWS SNPs in DRD2 region:", int(snp_drd2["is_gws"].sum()))
+
+results = []
+
+for file_name, dmr in tqdm(dmr_col.items(), desc="DMR files"):
+    dmr_drd2 = dmr.copy()
+    dmr_drd2.columns = ['CHROM', 'START', 'END']
+    dmr_drd2 = dmr_drd2.loc[
+        (dmr_drd2['CHROM'] == 'chr11')
+        & (dmr_drd2['START'] >= drd2_start)
+        & (dmr_drd2['END'] <= drd2_end)
+    ]
+    res = run_bedtools_intersect_count(
+        snp_df=snp_drd2,
+        dmr=dmr_drd2,
+        file_name=file_name
+    )
+    results.append(res)
+
+drd2_locus_result_df = pd.DataFrame(results)
+print(drd2_locus_result_df)
