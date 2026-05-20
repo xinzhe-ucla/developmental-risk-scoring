@@ -17,18 +17,18 @@ from tqdm import tqdm
 # wget https://figshare.com/ndownloader/files/34517861
 
 # load in the schizophrenia gwas:
-# scz_gwas = pd.read_csv(
-#     '/u/home/l/lixinzhe/project-cluo/data/scz_gwas/PGC3_SCZ_wave3.primary.autosome.public.v3.vcf.tsv',
-#     sep="\t",
-#     comment = '#'
-#     )
-
 scz_gwas = pd.read_csv(
-    '/u/home/l/lixinzhe/project-geschwind/data/GWAS/Schizophrenia_pardinas2018',
-    sep = ' ',
+    '/u/home/l/lixinzhe/project-cluo/data/scz_gwas/PGC3_SCZ_wave3.primary.autosome.public.v3.vcf.tsv',
+    sep="\t",
     comment = '#'
     )
-scz_gwas.columns = ['ID', 'CHROM', "POS", 'A1', 'A2', 'OR', 'SE', 'PVAL', 'DIRECTION']
+
+# scz_gwas = pd.read_csv(
+#     '/u/home/l/lixinzhe/project-geschwind/data/GWAS/Schizophrenia_pardinas2018',
+#     sep = ' ',
+#     comment = '#'
+#     )
+# scz_gwas.columns = ['ID', 'CHROM', "POS", 'A1', 'A2', 'OR', 'SE', 'PVAL', 'DIRECTION']
 
 ###########################################################################################
 ######                              look at near the DRD2 region                     ######
@@ -365,8 +365,8 @@ from scipy.stats import fisher_exact
 # 1. Define DRD2 locus
 # -----------------------------
 drd2_chr = "11"
-drd2_start = 113_280_327 - 250000
-drd2_end   = 113_346_120 + 250000
+drd2_start = 113_280_327 - 1000000
+drd2_end   = 113_346_120 + 1000000
 
 # -----------------------------
 # 2. Subset SNPs to DRD2 locus
