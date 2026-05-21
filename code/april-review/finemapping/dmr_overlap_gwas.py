@@ -8,6 +8,8 @@ today = date.today()
 import os
 import re
 from tqdm import tqdm
+import tempfile
+import subprocess
 
 ###########################################################################################
 ######                             Plot out the DRD2 region                          ######
@@ -35,6 +37,12 @@ scz_gwas = pd.read_csv(
 ###########################################################################################
 # columns expected: CHR, BP, P
 df = scz_gwas.dropna(subset=["CHROM", "POS", "PVAL", "ID"]).copy()[["CHROM", "POS", "PVAL", "ID"]]
+
+# specify DRD start and end location:
+DRD_START_LOC = 113_280_327
+DRD_END_LOC = 113_346_120
+WINDOW_SIZE = 250_000
+DRD_CHR = 11
 
 def plot_locus_manhattan(
     df,
@@ -146,8 +154,15 @@ def plot_locus_manhattan(
         plt.savefig(output_path, dpi=300, bbox_inches="tight")
     plt.close()
     return plot_df
-    
-plot_locus_manhattan(df, chrom=11, start=113280327 - 500000, end=113346120 + 500000, output_path=f"/u/home/l/lixinzhe/project-geschwind/plot/{today}-drd2_locus.pdf")
+
+# make a DRD locus plot:    
+plot_locus_manhattan(
+    df,
+    chrom=DRD_CHR,
+    start=DRD_START_LOC - WINDOW_SIZE,
+    end=DRD_END_LOC + WINDOW_SIZE,
+    output_path=f"/u/home/l/lixinzhe/project-geschwind/plot/{today}-drd2_locus.pdf"
+    )
 
 # read in the overlap:
 hypo_dmr_overlap_files = os.listdir('/u/scratch/l/lixinzhe/tmp-file/DMR/')
@@ -347,8 +362,8 @@ for file_name in dmr_col.keys():
         df,
         dmr_df = dmr_col[file_name],
         chrom=11,
-        center=113_280_327,
-        window=250000,
+        center=DRD_START_LOC,
+        window=WINDOW_SIZE,
         dmr_is_bed = True,
         annotate_top = True,
         output_path=f'/u/home/l/lixinzhe/project-geschwind/plot/{today}-{file_name}-drd2_locus-zero.pdf'
@@ -364,9 +379,9 @@ from scipy.stats import fisher_exact
 # -----------------------------
 # 1. Define DRD2 locus
 # -----------------------------
-drd2_chr = "11"
-drd2_start = 113_280_327 - 1000000
-drd2_end   = 113_346_120 + 1000000
+drd2_chr = str(DRD_CHR)
+drd2_start = DRD_START_LOC - WINDOW_SIZE
+drd2_end   = DRD_END_LOC + WINDOW_SIZE
 
 # -----------------------------
 # 2. Subset SNPs to DRD2 locus
@@ -386,6 +401,9 @@ snp_df["is_gws"] = snp_df["PVAL"] < 5e-8
 # -----------------------------
 # 3. Subset DMRs to DRD2 locus
 # -----------------------------
+odds_ratio_collector = []
+p_value_collector = []
+
 for file_name in dmr_col.keys():
     dmr = dmr_col[file_name].copy()
     dmr.columns = ["chrom", "start", "end"]
@@ -445,3 +463,161 @@ for file_name in dmr_col.keys():
         print(f"{file_name}")
         print("percent:", f"{pct_gws_in_dmr:.2f}%")
         print("One-sided Fisher p-value:", p_value)
+        odds_ratio_collector.append(odds_ratio)
+        p_value_collector.append(p_value)
+
+###########################################################################################
+######                                  code base check                              ######
+###########################################################################################
+def clean_chrom(x):
+    return (
+        x.astype(str)
+         .str.replace("^chr", "", regex=True)
+    )
+
+
+def run_bedtools_intersect_count(
+    snp_df,
+    dmr,
+    file_name=None,
+    bedtools="bedtools"
+):
+    """
+    Use bedtools intersect -u to mark SNPs that overlap at least one DMR.
+
+    Assumptions:
+    - snp_df has columns: chrom, POS, is_gws
+    - POS is 1-based GWAS position
+    - dmr has columns: chrom, start, end
+    - dmr start/end are BED-style 0-based half-open coordinates
+      If your DMR start/end are 1-based inclusive, see note below.
+    """
+
+    snp = snp_df.copy()
+    snp["chrom"] = clean_chrom(snp["CHROM"])
+    snp["POS"] = snp["POS"].astype(int)
+
+    dmr = dmr.copy()
+    dmr.columns = ["chrom", "start", "end"]
+    dmr["chrom"] = clean_chrom(dmr["chrom"])
+    dmr["start"] = dmr["start"].astype(int)
+    dmr["end"] = dmr["end"].astype(int)
+
+    # SNP BED: chrom, start0, end0, original_index
+    snp_bed = pd.DataFrame({
+        "chrom": snp["chrom"],
+        "start": snp["POS"] - 1,
+        "end": snp["POS"],
+        "idx": snp.index.astype(str)
+    })
+
+    dmr_bed = dmr[["chrom", "start", "end"]].dropna()
+
+    # Remove invalid intervals
+    dmr_bed = dmr_bed.loc[dmr_bed["end"] > dmr_bed["start"]].copy()
+
+    if snp_bed.empty or dmr_bed.empty:
+        in_dmr = pd.Series(False, index=snp.index)
+    else:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            snp_path = os.path.join(tmpdir, "snps.bed")
+            dmr_path = os.path.join(tmpdir, "dmr.bed")
+            out_path = os.path.join(tmpdir, "overlap.bed")
+
+            snp_bed.to_csv(snp_path, sep="\t", header=False, index=False)
+            dmr_bed.to_csv(dmr_path, sep="\t", header=False, index=False)
+
+            cmd = [
+                bedtools,
+                "intersect",
+                "-a", snp_path,
+                "-b", dmr_path,
+                "-u"
+            ]
+
+            with open(out_path, "w") as fout:
+                subprocess.run(cmd, stdout=fout, check=True)
+
+            if os.path.getsize(out_path) == 0:
+                overlap_idx = []
+            else:
+                overlap = pd.read_csv(
+                    out_path,
+                    sep="\t",
+                    header=None,
+                    names=["chrom", "start", "end", "idx"]
+                )
+                overlap_idx = overlap["idx"].astype(snp.index.dtype)
+
+            in_dmr = pd.Series(False, index=snp.index)
+            in_dmr.loc[overlap_idx] = True
+
+    is_gws = snp["is_gws"].astype(bool)
+
+    a = int((is_gws & in_dmr).sum())
+    b = int((is_gws & ~in_dmr).sum())
+    c = int((~is_gws & in_dmr).sum())
+    d = int((~is_gws & ~in_dmr).sum())
+
+    table = np.array([[a, b], [c, d]])
+
+    odds_ratio, p_value = fisher_exact(table, alternative="greater")
+
+    n_gws = int(is_gws.sum())
+    n_gws_in_dmr = a
+    pct_gws_in_dmr = 100 * n_gws_in_dmr / n_gws if n_gws > 0 else np.nan
+
+    return {
+        "file_name": file_name,
+        "a_gws_in_dmr": a,
+        "b_gws_not_in_dmr": b,
+        "c_non_gws_in_dmr": c,
+        "d_non_gws_not_in_dmr": d,
+        "n_gws": n_gws,
+        "n_gws_in_dmr": n_gws_in_dmr,
+        "pct_gws_in_dmr": pct_gws_in_dmr,
+        "odds_ratio": odds_ratio,
+        "p_value": p_value
+        }
+
+
+# -----------------------------
+# 1. Subset SNPs to DRD2 locus
+# -----------------------------
+snp_drd2 = snp_df.copy()
+snp_drd2["CHROM"] = clean_chrom(snp_drd2["CHROM"])
+snp_drd2["POS"] = snp_drd2["POS"].astype(int)
+snp_drd2["is_gws"] = snp_drd2["is_gws"].astype(bool)
+
+snp_drd2 = snp_drd2.loc[
+    (snp_drd2["CHROM"] == drd2_chr)
+    & (snp_drd2["POS"] >= drd2_start)
+    & (snp_drd2["POS"] <= drd2_end)
+].copy()
+
+print("Number of SNPs in DRD2 region:", len(snp_drd2))
+print("Number of GWS SNPs in DRD2 region:", int(snp_drd2["is_gws"].sum()))
+
+results = []
+
+for file_name, dmr in tqdm(dmr_col.items(), desc="DMR files"):
+    dmr_drd2 = dmr.copy()
+    dmr_drd2.columns = ['CHROM', 'START', 'END']
+    dmr_drd2 = dmr_drd2.loc[
+        (dmr_drd2['CHROM'] == 'chr11')
+        & (dmr_drd2['END'] >= drd2_start)
+        & (dmr_drd2['START'] <= drd2_end)
+    ]
+    res = run_bedtools_intersect_count(
+        snp_df=snp_drd2,
+        dmr=dmr_drd2,
+        file_name=file_name
+    )
+    results.append(res)
+
+drd2_locus_result_df = pd.DataFrame(results)
+
+# check if the two method obtain the same result:
+assert all(np.isclose(odds_ratio_collector, drd2_locus_result_df.odds_ratio))
+assert all(np.isclose(p_value_collector, drd2_locus_result_df.p_value))
+
