@@ -142,32 +142,21 @@ finemap = pd.read_csv('/u/home/l/lixinzhe/project-geschwind/port/finemapped-scz/
 
 # load in the gtex:
 gtex_files = [
-    "/u/home/l/lixinzhe/project-geschwind/data/GTEX_eQTL/V7/Brain_Caudate_basal_ganglia.allpairs.txt.gz",
-    "/u/home/l/lixinzhe/project-geschwind/data/GTEX_eQTL/V7/Brain_Nucleus_accumbens_basal_ganglia.allpairs.txt.gz",
-    "/u/home/l/lixinzhe/project-geschwind/data/GTEX_eQTL/V7/Brain_Putamen_basal_ganglia.allpairs.txt.gz",
-    '/u/home/l/lixinzhe/project-geschwind/data/GTEX_eQTL/V7/Brain_Frontal_Cortex_BA9.allpairs.txt.gz'
+    "/u/home/l/lixinzhe/project-geschwind/data/GTEX_eQTL/V7_sig_only/Brain_Caudate_basal_ganglia.marginal_significant.txt",
+    "/u/home/l/lixinzhe/project-geschwind/data/GTEX_eQTL/V7_sig_only/Brain_Nucleus_accumbens_basal_ganglia.marginal_significant.txt",
+    "/u/home/l/lixinzhe/project-geschwind/data/GTEX_eQTL/V7_sig_only/Brain_Putamen_basal_ganglia.marginal_significant.txt",
+    '/u/home/l/lixinzhe/project-geschwind/data/GTEX_eQTL/V7_sig_only/Brain_Frontal_Cortex_BA9.marginal_significant.txt'
 ]
 
 gtex_col = {}
 for gtex_file in tqdm(gtex_files):
     tissue = re.sub('.*/', '', gtex_file)
-    tissue = re.sub('.allpairs.txt.gz', '', tissue)
+    tissue = re.sub('.marginal_significant.txt', '', tissue)
     
     gtex = pd.read_csv(
         gtex_file,
         sep = '\t'
         )
-
-    gtex = gtex[gtex.pval_nominal < 0.05].copy()
-    gtex['chromosome'] = [re.sub('_.*', '',f) for f in gtex.variant_id]
-    gtex['stripped_id'] = gtex["gene_id"].astype(str).str.replace(r"\.\d+$", "", regex=True)
-
-    # split the variant id:
-    cols = gtex["variant_id"].str.split("_", expand=True)
-    gtex["chromosome"] = cols[0]
-    gtex["position"] = cols[1].astype(int)
-    gtex["ref"] = cols[2]
-    gtex["alt"] = cols[3]
     gtex_col[tissue] = gtex
 
 # load in the DMR:
