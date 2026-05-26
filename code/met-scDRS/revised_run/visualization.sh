@@ -100,3 +100,11 @@ Rscript /u/home/l/lixinzhe/project-github/developmental-risk-scoring/code/met-sc
     --yaxis "Y_umap" \
     --cutoff 0.1 \
     --out "/u/home/l/lixinzhe/project-geschwind/plot/cov-intial_run_developmental_methylation_umap-281146/"
+
+Rscript /u/home/l/lixinzhe/project-github/developmental-risk-scoring/code/met-scDRS/revised_run/proportion-heatmap-heng.R \
+    --dir '/u/home/l/lixinzhe/project-geschwind/result/met-scDRS/dev-revised/cov/' \
+    --meta_data "/u/project/cluo/heffel/BICAN3/REVISION/metadata_passQC_05212026.tsv.gz" \
+    --field 'newL3' \
+    --cutoff 0.1 \
+    --out "/u/home/l/lixinzhe/project-geschwind/plot/${current_date}-revised-BICAN-mcg-l3-proportion-heng-annotation.png" \
+    --plot_type "proportion"

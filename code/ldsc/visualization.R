@@ -127,3 +127,5 @@ pdf(
 draw(plot, heatmap_legend_side = 'left', padding = unit(c(30, 10, 10, 70), "mm"));
 dev.off();
 
+output_table_path = gsub('.pdf', '.csv', output.path)
+write.table(h2_df, sep = ',', file = output_table_path)
