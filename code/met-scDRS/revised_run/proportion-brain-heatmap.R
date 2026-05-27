@@ -13,7 +13,7 @@ require(circlize);
 
 # load in data:
 significance.matrix <- read.table(
-    file = '/u/home/l/lixinzhe/project-geschwind/plot/2025-09-17-revised-BICAN-mcg-l3-proportion.csv',
+    file = '/u/home/l/lixinzhe/project-geschwind/plot/2025-10-08-revised-BICAN-mcg-l3-proportion.csv',
     sep = ',',
     row.names = 1,
     header = TRUE,
@@ -51,6 +51,12 @@ trait.info$Trait_Identifier <- gsub('PASS_', '', trait.info$Trait_Identifier)
 trait.info$Trait_Identifier <- gsub('UKB_460K.', '', trait.info$Trait_Identifier)
 trait.info$Trait_Identifier <- gsub('cov_', '', trait.info$Trait_Identifier)
 trait.info$Trait_Identifier <- gsub('repro_', '', trait.info$Trait_Identifier)
+
+rownames(significance.matrix) <- gsub('PASS_', '', rownames(significance.matrix))
+rownames(significance.matrix) <- gsub('UKB_460K.', '', rownames(significance.matrix))
+rownames(significance.matrix) <- gsub('cov_', '', rownames(significance.matrix))
+rownames(significance.matrix) <- gsub('repro_', '', rownames(significance.matrix))
+
 trait.class <- trait.info$Category[match(rownames(significance.matrix), trait.info$Trait_Identifier)];
 
 # select traits to plot:
@@ -96,9 +102,9 @@ plot <- Heatmap(
     col = col.fun,
     rect_gp = gpar(col = "black", lwd = 2),
     #row_order = publication.traits,
-    cluster_rows = TRUE,
+    cluster_rows = FALSE,
     #column_order = cell.type.order,
-    cluster_columns = TRUE,
+    cluster_columns = FALSE,
     width = unit(10 * length(cell.type.order),"mm"),
     height = unit(10 * length(publication.traits),"mm"),
     column_names_gp = grid::gpar(fontsize = 15),

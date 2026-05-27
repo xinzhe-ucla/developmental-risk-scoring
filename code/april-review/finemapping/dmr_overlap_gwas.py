@@ -1,0 +1,623 @@
+import pandas as pd
+import polars as pl
+# import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from datetime import date
+today = date.today()
+import os
+import re
+from tqdm import tqdm
+import tempfile
+import subprocess
+
+###########################################################################################
+######                             Plot out the DRD2 region                          ######
+###########################################################################################
+# first read in a SCZ GWAS:
+# cd 
+# wget https://figshare.com/ndownloader/files/34517861
+
+# load in the schizophrenia gwas:
+scz_gwas = pd.read_csv(
+    '/u/home/l/lixinzhe/project-cluo/data/scz_gwas/PGC3_SCZ_wave3.primary.autosome.public.v3.vcf.tsv',
+    sep="\t",
+    comment = '#'
+    )
+
+# scz_gwas = pd.read_csv(
+#     '/u/home/l/lixinzhe/project-geschwind/data/GWAS/Schizophrenia_pardinas2018',
+#     sep = ' ',
+#     comment = '#'
+#     )
+# scz_gwas.columns = ['ID', 'CHROM', "POS", 'A1', 'A2', 'OR', 'SE', 'PVAL', 'DIRECTION']
+
+###########################################################################################
+######                              look at near the DRD2 region                     ######
+###########################################################################################
+# columns expected: CHR, BP, P
+df = scz_gwas.dropna(subset=["CHROM", "POS", "PVAL", "ID"]).copy()[["CHROM", "POS", "PVAL", "ID"]]
+
+# specify DRD start and end location:
+DRD_START_LOC = 113_280_327
+DRD_END_LOC = 113_346_120
+WINDOW_SIZE = 250_000
+DRD_CHR = 11
+
+def plot_locus_manhattan(
+    df,
+    chrom,
+    output_path,
+    start=None,
+    end=None,
+    center=None,
+    window=None,
+    chrom_col="CHROM",
+    pos_col="POS",
+    p_col="PVAL",
+    id_col="ID",
+    annotate_top=False,
+    top_n=5,
+    figsize=(10, 5),
+):
+    """
+    Plot a local Manhattan plot for one genomic region.
+
+    Parameters
+    ----------
+    df : pandas.DataFrame
+        Must contain chromosome, position, and p-value columns.
+    chrom : str or int
+        Chromosome to plot.
+    start, end : int, optional
+        Region boundaries. Use these directly, or use center + window.
+    center : int, optional
+        Center position of region.
+    window : int, optional
+        Half-window around center. Example: center=113300000, window=500000
+        plots [112800000, 113800000].
+    chrom_col, pos_col, p_col, id_col : str
+        Column names in df.
+    annotate_top : bool
+        Whether to label the most significant variants.
+    top_n : int
+        Number of top variants to annotate if annotate_top=True.
+    figsize : tuple
+        Figure size.
+
+    Returns
+    -------
+    pandas.DataFrame
+        The subset of data used for plotting.
+    """
+
+    # Make a working copy
+    plot_df = df[[chrom_col, pos_col, p_col] + ([id_col] if id_col in df.columns else [])].copy()
+
+    # Clean types
+    plot_df[chrom_col] = plot_df[chrom_col].astype(str)
+    chrom = str(chrom)
+
+    plot_df[pos_col] = pd.to_numeric(plot_df[pos_col], errors="coerce")
+    plot_df[p_col] = pd.to_numeric(plot_df[p_col], errors="coerce")
+
+    # Drop bad rows
+    plot_df = plot_df.dropna(subset=[chrom_col, pos_col, p_col])
+    plot_df = plot_df[(plot_df[p_col] > 0) & (plot_df[p_col] <= 1)]
+
+    # Define region
+    if center is not None and window is not None:
+        start = center - window
+        end = center + window
+
+    if start is None or end is None:
+        raise ValueError("Provide either (start and end) or (center and window).")
+
+    # Subset region
+    plot_df = plot_df[
+        (plot_df[chrom_col] == chrom) &
+        (plot_df[pos_col] >= start) &
+        (plot_df[pos_col] <= end)
+    ].copy()
+
+    if plot_df.empty:
+        raise ValueError("No variants found in the requested region.")
+
+    # Compute -log10(p)
+    plot_df["minus_log10_p"] = -np.log10(plot_df[p_col])
+
+    # Sort by position
+    plot_df = plot_df.sort_values(pos_col)
+
+    # Plot
+    plt.figure(figsize=figsize)
+    plt.scatter(plot_df[pos_col], plot_df["minus_log10_p"], s=8)
+    plt.axhline(-np.log10(5e-8), linestyle="--", linewidth=1)
+    plt.xlabel(f"Position on chr{chrom}")
+    plt.ylabel("-log10(P)")
+    plt.title(f"Local Manhattan plot: chr{chrom}:{start:,}-{end:,}")
+    plt.tight_layout()
+
+    # Optional annotation of top hits
+    if annotate_top and id_col in plot_df.columns:
+        top_hits = plot_df.nsmallest(top_n, p_col)
+        for _, row in top_hits.iterrows():
+            plt.annotate(
+                row[id_col],
+                (row[pos_col], row["minus_log10_p"]),
+                fontsize=8,
+            )
+    plt.tight_layout()
+    if output_path.endswith('pdf'):
+        plt.savefig(output_path, bbox_inches="tight")
+    else:
+        plt.savefig(output_path, dpi=300, bbox_inches="tight")
+    plt.close()
+    return plot_df
+
+# make a DRD locus plot:    
+plot_locus_manhattan(
+    df,
+    chrom=DRD_CHR,
+    start=DRD_START_LOC - WINDOW_SIZE,
+    end=DRD_END_LOC + WINDOW_SIZE,
+    output_path=f"/u/home/l/lixinzhe/project-geschwind/plot/{today}-drd2_locus.pdf"
+    )
+
+# read in the overlap:
+hypo_dmr_overlap_files = os.listdir('/u/scratch/l/lixinzhe/tmp-file/DMR/')
+drd2_hypo_dmr = [f for f in hypo_dmr_overlap_files if f.endswith("hypo_dmr_overlap.hg19.dmr.bed")]
+drd2_hypo_dmr = [f for f in drd2_hypo_dmr if 'DRD2-BACH2' in f]
+# drd2_hypo_dmr = ['2T_Inh-MSN-eMSN.hypo_dmr_overlap.hg19.dmr.bed'] + drd2_hypo_dmr
+
+dmr_col = {}
+for file in drd2_hypo_dmr:
+    file_name = re.sub('.hypo_dmr_overlap.hg19.dmr.bed', '', file)
+    dmr_col[file_name] = pd.read_table(f'/u/scratch/l/lixinzhe/tmp-file/DMR/{file}', sep = '\t', header = None)
+    print(file_name)
+
+###########################################################################################
+######                                    overlap                                    ######
+###########################################################################################
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+
+
+import pandas as pd
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.ticker import MultipleLocator
+from adjustText import adjust_text
+
+
+
+def plot_locus_manhattan_with_dmr(
+    gwas_df,
+    dmr_df,
+    chrom,
+    output_path,
+    start=None,
+    end=None,
+    center=None,
+    window=None,
+    chrom_col="CHROM",
+    pos_col="POS",
+    p_col="PVAL",
+    id_col="ID",
+    annotate_top=False,
+    top_n=5,
+    dpi=300,
+    figsize=(10, 5),
+    dmr_is_bed=True,
+    shade_dmr=True,
+):
+    """
+    Plot a regional Manhattan plot, overlay DMR intervals, and color SNPs red if they overlap a DMR.
+
+    Parameters
+    ----------
+    gwas_df : pandas.DataFrame
+        GWAS dataframe with columns like CHROM, POS, PVAL, ID.
+    dmr_df : pandas.DataFrame
+        DMR dataframe with no header:
+        column 0 = chromosome, column 1 = start, column 2 = end.
+    chrom : str or int
+        Chromosome to plot.
+    output_path : str
+        File path to save the plot.
+    start, end : int, optional
+        Region boundaries.
+    center, window : int, optional
+        Alternative way to define the region.
+    dmr_is_bed : bool
+        If True, interpret DMR coordinates as BED (0-based, half-open) and convert to 1-based.
+    shade_dmr : bool
+        If True, shade DMR intervals in the background.
+    """
+
+    chrom = str(chrom)
+
+    # Clean GWAS dataframe
+    plot_df = gwas_df.copy()
+    plot_df[chrom_col] = plot_df[chrom_col].astype(str).str.replace("^chr", "", regex=True)
+    plot_df[pos_col] = pd.to_numeric(plot_df[pos_col], errors="coerce")
+    plot_df[p_col] = pd.to_numeric(plot_df[p_col], errors="coerce")
+
+    plot_df = plot_df.dropna(subset=[chrom_col, pos_col, p_col])
+    plot_df = plot_df[(plot_df[p_col] > 0) & (plot_df[p_col] <= 1)]
+
+    # Define region
+    if center is not None and window is not None:
+        start = center - window
+        end = center + window
+
+    if start is None or end is None:
+        raise ValueError("Provide either (start and end) or (center and window).")
+
+    # Subset GWAS region
+    plot_df = plot_df[
+        (plot_df[chrom_col] == chrom) &
+        (plot_df[pos_col] >= start) &
+        (plot_df[pos_col] <= end)
+    ].copy()
+
+    if plot_df.empty:
+        raise ValueError("No GWAS variants found in this region.")
+
+    plot_df["minus_log10_p"] = -np.log10(plot_df[p_col])
+    plot_df = plot_df.sort_values(pos_col)
+
+    # Clean DMR dataframe
+    dmr_sub = dmr_df.iloc[:, :3].copy()
+    dmr_sub.columns = ["chrom", "start", "end"]
+    dmr_sub["chrom"] = dmr_sub["chrom"].astype(str).str.replace("^chr", "", regex=True)
+    dmr_sub["start"] = pd.to_numeric(dmr_sub["start"], errors="coerce")
+    dmr_sub["end"] = pd.to_numeric(dmr_sub["end"], errors="coerce")
+    dmr_sub = dmr_sub.dropna(subset=["chrom", "start", "end"])
+
+    # BED (0-based, half-open) -> 1-based inclusive
+    if dmr_is_bed:
+        dmr_sub["start"] = dmr_sub["start"] + 1
+        dmr_sub['end'] = dmr_sub['end']
+
+    # Keep only DMRs overlapping the plotting window
+    dmr_sub = dmr_sub[
+        (dmr_sub["chrom"] == chrom) &
+        (dmr_sub["end"] >= start) &
+        (dmr_sub["start"] <= end)
+    ].copy()
+
+    # Mark SNPs that overlap any DMR
+    plot_df["overlap_dmr"] = False
+
+    if not dmr_sub.empty:
+        for _, row in dmr_sub.iterrows():
+            mask = (plot_df[pos_col] >= row["start"]) & (plot_df[pos_col] <= row["end"])
+            plot_df.loc[mask, "overlap_dmr"] = True
+
+    # Plot
+    fig, ax = plt.subplots(figsize=figsize)
+
+    # Optional DMR shading
+    if shade_dmr and not dmr_sub.empty:
+        for _, row in dmr_sub.iterrows():
+            ax.axvspan(row["start"], row["end"], alpha=0.15)
+
+    # Non-overlapping SNPs
+    non_overlap = plot_df[~plot_df["overlap_dmr"]]
+    ax.scatter(non_overlap[pos_col], non_overlap["minus_log10_p"], s=8)
+
+    # Overlapping SNPs in red
+    overlap = plot_df[plot_df["overlap_dmr"]]
+    ax.scatter(overlap[pos_col], overlap["minus_log10_p"], s=12, color="red")
+
+    # Genome-wide significance line
+    ax.axhline(-np.log10(5e-8), linestyle="--", linewidth=1)
+    ax.xaxis.set_major_locator(MultipleLocator(10000))
+    ax.tick_params(axis="x", rotation=90)
+
+    # Optional annotation of top hits
+    if annotate_top and id_col in plot_df.columns:
+        top_hits = plot_df.loc[
+            (plot_df['overlap_dmr']) & (plot_df[p_col] < 5e-8),]
+        texts = []
+        for _, row in top_hits.iterrows():
+            texts.append(
+                ax.text(
+                    row[pos_col],
+                    row["minus_log10_p"],
+                    row[id_col],
+                    fontsize=8
+                )
+            )
+        adjust_text(
+            texts,
+            ax=ax,
+            arrowprops=dict(arrowstyle="-", lw=0.5)
+        )
+    
+    # add all the labels:
+    ax.set_xlabel(f"Position on chr{chrom}")
+    ax.set_ylabel("-log10(P)")
+    ax.set_title(f"chr{chrom}:{start:,}-{end:,}")
+
+    plt.tight_layout()
+    
+    if output_path.endswith('pdf'):
+        plt.savefig(output_path, bbox_inches="tight")
+    else:
+        plt.savefig(output_path, dpi=dpi, bbox_inches="tight")
+    plt.close()
+
+    return plot_df, dmr_sub
+
+
+for file_name in dmr_col.keys():
+    plot_locus_manhattan_with_dmr(
+        df,
+        dmr_df = dmr_col[file_name],
+        chrom=11,
+        center=DRD_START_LOC,
+        window=WINDOW_SIZE,
+        dmr_is_bed = True,
+        annotate_top = True,
+        output_path=f'/u/home/l/lixinzhe/project-geschwind/plot/{today}-{file_name}-drd2_locus-zero.pdf'
+    )
+
+###########################################################################################
+######                        Count the number of significant hits in DRD            ######
+###########################################################################################
+import pandas as pd
+import numpy as np
+from scipy.stats import fisher_exact
+
+# -----------------------------
+# 1. Define DRD2 locus
+# -----------------------------
+drd2_chr = str(DRD_CHR)
+drd2_start = DRD_START_LOC - WINDOW_SIZE
+drd2_end   = DRD_END_LOC + WINDOW_SIZE
+
+# -----------------------------
+# 2. Subset SNPs to DRD2 locus
+# -----------------------------
+snp_df = df.loc[:, ["CHROM", "POS", "PVAL", "ID"]].copy()
+snp_df["CHROM"] = snp_df["CHROM"].astype(str).str.replace("^chr", "", regex=True)
+snp_df["POS"] = snp_df["POS"].astype(int)
+
+snp_df = snp_df.loc[
+    (snp_df["CHROM"] == drd2_chr) &
+    (snp_df["POS"] >= drd2_start) &
+    (snp_df["POS"] <= drd2_end)
+].copy()
+
+snp_df["is_gws"] = snp_df["PVAL"] < 5e-8
+
+# -----------------------------
+# 3. Subset DMRs to DRD2 locus
+# -----------------------------
+odds_ratio_collector = []
+p_value_collector = []
+
+for file_name in dmr_col.keys():
+    dmr = dmr_col[file_name].copy()
+    dmr.columns = ["chrom", "start", "end"]
+    dmr["chrom"] = dmr["chrom"].astype(str).str.replace("^chr", "", regex=True)
+    dmr["start"] = dmr["start"].astype(int) + 1
+    dmr["end"] = dmr["end"].astype(int)
+
+    dmr = dmr.loc[
+        (dmr["chrom"] == drd2_chr) &
+        (dmr["end"] >= drd2_start) &
+        (dmr["start"] <= drd2_end)
+    ].copy()
+
+    # -----------------------------
+    # 4. Mark SNPs that fall in any DMR
+    # -----------------------------
+    snp_df["in_dmr"] = False
+
+    if not dmr.empty and not snp_df.empty:
+        hit = pd.Series(False, index=snp_df.index)
+        for start, end in zip(dmr["start"], dmr["end"]):
+            hit |= snp_df["POS"].between(start, end)
+        snp_df["in_dmr"] = hit
+
+    # -----------------------------
+    # 5. Percentage of GWS SNPs in DMR within DRD2
+    # -----------------------------
+    gws = snp_df.loc[snp_df["is_gws"]].copy()
+
+    n_gws = len(gws)
+    n_gws_in_dmr = int(gws["in_dmr"].sum())
+    pct_gws_in_dmr = 100 * n_gws_in_dmr / n_gws if n_gws > 0 else np.nan
+
+    # print(f"DRD2 locus SNPs: {len(snp_df)}")
+    # print(f"DRD2 locus DMRs: {len(dmr)}")
+    # print(f"GWS SNPs in DRD2 locus: {n_gws}")
+    # print(f"GWS SNPs in DMRs within DRD2 locus: {n_gws_in_dmr}")
+    # print(f"Percentage: {pct_gws_in_dmr:.2f}%")
+
+    # -----------------------------
+    # 6. Fisher exact test within DRD2 locus
+    # -----------------------------
+    a = ((snp_df["is_gws"]) & (snp_df["in_dmr"])).sum()
+    b = ((snp_df["is_gws"]) & (~snp_df["in_dmr"])).sum()
+    c = ((~snp_df["is_gws"]) & (snp_df["in_dmr"])).sum()
+    d = ((~snp_df["is_gws"]) & (~snp_df["in_dmr"])).sum()
+
+    table = np.array([[a, b],
+                    [c, d]])
+
+    # print(pd.DataFrame(table,
+    #                 index=["GWS", "Non-GWS"],
+    #                 columns=["In_DMR", "Not_in_DMR"]))
+
+    if table.min() >= 0:
+        odds_ratio, p_value = fisher_exact(table, alternative="greater")
+        print(f"{file_name}")
+        print("percent:", f"{pct_gws_in_dmr:.2f}%")
+        print("One-sided Fisher p-value:", p_value)
+        odds_ratio_collector.append(odds_ratio)
+        p_value_collector.append(p_value)
+
+###########################################################################################
+######                                  code base check                              ######
+###########################################################################################
+def clean_chrom(x):
+    return (
+        x.astype(str)
+         .str.replace("^chr", "", regex=True)
+    )
+
+
+def run_bedtools_intersect_count(
+    snp_df,
+    dmr,
+    file_name=None,
+    bedtools="bedtools"
+):
+    """
+    Use bedtools intersect -u to mark SNPs that overlap at least one DMR.
+
+    Assumptions:
+    - snp_df has columns: chrom, POS, is_gws
+    - POS is 1-based GWAS position
+    - dmr has columns: chrom, start, end
+    - dmr start/end are BED-style 0-based half-open coordinates
+      If your DMR start/end are 1-based inclusive, see note below.
+    """
+
+    snp = snp_df.copy()
+    snp["chrom"] = clean_chrom(snp["CHROM"])
+    snp["POS"] = snp["POS"].astype(int)
+
+    dmr = dmr.copy()
+    dmr.columns = ["chrom", "start", "end"]
+    dmr["chrom"] = clean_chrom(dmr["chrom"])
+    dmr["start"] = dmr["start"].astype(int)
+    dmr["end"] = dmr["end"].astype(int)
+
+    # SNP BED: chrom, start0, end0, original_index
+    snp_bed = pd.DataFrame({
+        "chrom": snp["chrom"],
+        "start": snp["POS"] - 1,
+        "end": snp["POS"],
+        "idx": snp.index.astype(str)
+    })
+
+    dmr_bed = dmr[["chrom", "start", "end"]].dropna()
+
+    # Remove invalid intervals
+    dmr_bed = dmr_bed.loc[dmr_bed["end"] > dmr_bed["start"]].copy()
+
+    if snp_bed.empty or dmr_bed.empty:
+        in_dmr = pd.Series(False, index=snp.index)
+    else:
+        with tempfile.TemporaryDirectory() as tmpdir:
+            snp_path = os.path.join(tmpdir, "snps.bed")
+            dmr_path = os.path.join(tmpdir, "dmr.bed")
+            out_path = os.path.join(tmpdir, "overlap.bed")
+
+            snp_bed.to_csv(snp_path, sep="\t", header=False, index=False)
+            dmr_bed.to_csv(dmr_path, sep="\t", header=False, index=False)
+
+            cmd = [
+                bedtools,
+                "intersect",
+                "-a", snp_path,
+                "-b", dmr_path,
+                "-u"
+            ]
+
+            with open(out_path, "w") as fout:
+                subprocess.run(cmd, stdout=fout, check=True)
+
+            if os.path.getsize(out_path) == 0:
+                overlap_idx = []
+            else:
+                overlap = pd.read_csv(
+                    out_path,
+                    sep="\t",
+                    header=None,
+                    names=["chrom", "start", "end", "idx"]
+                )
+                overlap_idx = overlap["idx"].astype(snp.index.dtype)
+
+            in_dmr = pd.Series(False, index=snp.index)
+            in_dmr.loc[overlap_idx] = True
+
+    is_gws = snp["is_gws"].astype(bool)
+
+    a = int((is_gws & in_dmr).sum())
+    b = int((is_gws & ~in_dmr).sum())
+    c = int((~is_gws & in_dmr).sum())
+    d = int((~is_gws & ~in_dmr).sum())
+
+    table = np.array([[a, b], [c, d]])
+
+    odds_ratio, p_value = fisher_exact(table, alternative="greater")
+
+    n_gws = int(is_gws.sum())
+    n_gws_in_dmr = a
+    pct_gws_in_dmr = 100 * n_gws_in_dmr / n_gws if n_gws > 0 else np.nan
+
+    return {
+        "file_name": file_name,
+        "a_gws_in_dmr": a,
+        "b_gws_not_in_dmr": b,
+        "c_non_gws_in_dmr": c,
+        "d_non_gws_not_in_dmr": d,
+        "n_gws": n_gws,
+        "n_gws_in_dmr": n_gws_in_dmr,
+        "pct_gws_in_dmr": pct_gws_in_dmr,
+        "odds_ratio": odds_ratio,
+        "p_value": p_value
+        }
+
+
+# -----------------------------
+# 1. Subset SNPs to DRD2 locus
+# -----------------------------
+snp_drd2 = snp_df.copy()
+snp_drd2["CHROM"] = clean_chrom(snp_drd2["CHROM"])
+snp_drd2["POS"] = snp_drd2["POS"].astype(int)
+snp_drd2["is_gws"] = snp_drd2["is_gws"].astype(bool)
+
+snp_drd2 = snp_drd2.loc[
+    (snp_drd2["CHROM"] == drd2_chr)
+    & (snp_drd2["POS"] >= drd2_start)
+    & (snp_drd2["POS"] <= drd2_end)
+].copy()
+
+print("Number of SNPs in DRD2 region:", len(snp_drd2))
+print("Number of GWS SNPs in DRD2 region:", int(snp_drd2["is_gws"].sum()))
+
+results = []
+
+for file_name, dmr in tqdm(dmr_col.items(), desc="DMR files"):
+    dmr_drd2 = dmr.copy()
+    dmr_drd2.columns = ['CHROM', 'START', 'END']
+    dmr_drd2 = dmr_drd2.loc[
+        (dmr_drd2['CHROM'] == 'chr11')
+        & (dmr_drd2['END'] >= drd2_start)
+        & (dmr_drd2['START'] <= drd2_end)
+    ]
+    res = run_bedtools_intersect_count(
+        snp_df=snp_drd2,
+        dmr=dmr_drd2,
+        file_name=file_name
+    )
+    results.append(res)
+
+drd2_locus_result_df = pd.DataFrame(results)
+
+# check if the two method obtain the same result:
+assert all(np.isclose(odds_ratio_collector, drd2_locus_result_df.odds_ratio))
+assert all(np.isclose(p_value_collector, drd2_locus_result_df.p_value))
+

@@ -1,0 +1,333 @@
+### look at only adults
+
+## plot out the disease x all cell types in adult only to find DRD tye enriched results
+# load in the data:
+library(data.table)
+library(tidyverse)
+library(clusterProfiler);
+library(ComplexHeatmap)
+require(circlize);
+
+meta = read.table('/u/home/l/lixinzhe/project-geschwind/port/scratch/met_scdrs_dev/metadata_10292025_subset.csv.gz', sep = ',', header=TRUE, row.names = 1)
+scDRS.directory = '/u/home/l/lixinzhe/project-geschwind/result/met-scDRS/dev-revised/cov/'
+
+score.files <- list.files(scDRS.directory, pattern = '\\.score.gz', full.names = TRUE);
+risk.score <- vector('list', length = length(score.files));
+names(risk.score) <- score.files;
+
+mdd = data.frame(
+    fread(
+        file =  "/u/home/l/lixinzhe/project-geschwind/result/met-scDRS/dev-revised/cov/PASS_MDD_Howard2019.score.gz",
+        sep = '\t',
+        header = TRUE,
+        data.table = FALSE
+        ),
+        row.names = 1
+    )
+# format the meta data:
+new_name = gsub('-0-0-0', '', rownames(mdd))
+new_name = gsub('-1-0$', '', new_name)
+new_name = gsub('-1$', '', new_name)
+new_name = gsub('-1-0-0$', '', new_name)
+
+# get the common cells:
+common_cells = intersect(new_name, rownames(meta))
+meta = meta[common_cells, ]
+
+# label the '' as 'unknown'
+meta$newL1[meta$newL1 == ''] = 'unknown'
+meta$newL1[meta$newL1 == '?'] = 'unknown'
+meta$newL2[meta$newL2 == ''] = 'unknown'
+meta$newL2[meta$newL2 == '?'] = 'unknown'
+meta$adjusted_L3[meta$adjusted_L3 == ''] = 'unknown'
+meta$adjusted_L3[meta$adjusted_L3 == '?'] = 'unknown'
+meta$adjusted_L3 = paste0(meta$newL1, '_', meta$adjusted_L3)
+
+# read into the empty list:
+for (result in score.files) {
+    met_scdrs_result <- data.frame(
+        fread(
+        file = result,
+        sep = '\t',
+        header = TRUE,
+        data.table = FALSE
+        ),
+        row.names = 1)
+    rownames(met_scdrs_result) = new_name
+    met_scdrs_result = met_scdrs_result[common_cells, ]
+    met_scdrs_result$fdr = p.adjust(met_scdrs_result$pval, method = 'fdr')
+    risk.score[[result]] = met_scdrs_result
+    }
+
+# simplify names:
+list.names <- gsub(scDRS.directory, '', score.files);
+list.names <- gsub('/', '', list.names);
+list.names <- gsub('\\.score.gz', '', list.names);
+
+# rename the list names:
+names(risk.score) <- list.names;
+
+# get the trait information
+trait.info.path <- '/u/home/l/lixinzhe/project-geschwind/data/tait-classification.txt';
+trait.info <- read.table(file = trait.info.path, sep = '\t', header = TRUE);
+brain_traits = trait.info$Trait_Identifier[trait.info$Category == 'brain']
+
+### look at the adult only data:
+adult_cells <- rownames(meta)[meta$fine2_age_groups == 'adult']
+
+# get the proportion of cells that are significant in each of the disease x cell type
+meta_adult = meta[adult_cells, ]
+
+significance_matrix = data.frame(matrix(NA, nrow = length(risk.score), ncol = length(unique(meta_adult$adjusted_L3))))
+colnames(significance_matrix) = unique(meta_adult$adjusted_L3)
+rownames(significance_matrix) = names(risk.score)
+
+for (disease in names(risk.score)){
+    adult_only_risk_score = risk.score[[disease]][adult_cells, 'zscore']
+    adult_only_fdr = risk.score[[disease]][adult_cells, 'fdr']
+    
+    # bind the meta to the risk score
+    meta_adult$risk_score = adult_only_risk_score
+    meta_adult$fdr = adult_only_fdr
+    
+    # calculate proportion:
+    proprotion_sig = meta_adult %>% group_by(adjusted_L3) %>% 
+        summarize(
+            n = n(),
+            n_sig = sum(fdr < 0.1, na.rm = TRUE),
+            proportion = n_sig / n,
+            .groups = "drop"
+        )
+    
+    # coerce into named vector:
+    sig_by_celltype_in_disease = c(proprotion_sig$proportion)
+    names(sig_by_celltype_in_disease) = proprotion_sig$adjusted_L3
+    sig_by_celltype_in_disease = sig_by_celltype_in_disease[colnames(significance_matrix)]
+    
+    # put the result into a significant proportion matrix:
+    significance_matrix[disease, ] = sig_by_celltype_in_disease
+}
+
+### make the matrix ###
+significance.matrix = significance_matrix
+
+# find out the set of brain traits:
+trait.info$Trait_Identifier <- gsub('PASS_', '', trait.info$Trait_Identifier)
+trait.info$Trait_Identifier <- gsub('UKB_460K.', '', trait.info$Trait_Identifier)
+trait.info$Trait_Identifier <- gsub('cov_', '', trait.info$Trait_Identifier)
+trait.info$Trait_Identifier <- gsub('repro_', '', trait.info$Trait_Identifier)
+
+rownames(significance.matrix) <- gsub('PASS_', '', rownames(significance.matrix))
+rownames(significance.matrix) <- gsub('UKB_460K.', '', rownames(significance.matrix))
+rownames(significance.matrix) <- gsub('cov_', '', rownames(significance.matrix))
+rownames(significance.matrix) <- gsub('repro_', '', rownames(significance.matrix))
+
+trait.class <- trait.info$Category[match(rownames(significance.matrix), trait.info$Trait_Identifier)];
+
+# select traits to plot:
+publication.traits <- rownames(significance.matrix)[trait.class == 'brain'];
+# grab out the cell types:
+cell.types = unique(meta_adult[, 'adjusted_L3'])
+excitatory = sort(cell.types[grep('^Exc', cell.types)])
+inhibitory = sort(cell.types[grep('^Inh', cell.types)])
+others = setdiff(cell.types, c(excitatory, inhibitory))
+
+cell.type.order = c(
+    excitatory,
+    inhibitory,
+    others
+    )
+
+column.split = c(
+    rep('Excitatory', length(excitatory)),
+    rep('Inhibitory', length(inhibitory)),
+    rep('Others', length(others))
+    )
+
+# make color function
+col.fun <- colorRamp2(
+    c(
+        0,
+        1
+        ),
+    c('white', '#de2d26')
+    );
+heatmap.legend.param <- list(
+    at = c(
+        0,
+        1
+        )
+    );
+
+# create heatmap:
+plot <- Heatmap(
+    as.matrix(significance.matrix)[publication.traits, cell.type.order],
+    name = 'Sig. cells',
+    col = col.fun,
+    rect_gp = gpar(col = "black", lwd = 2),
+    #row_order = publication.traits,
+    cluster_rows = FALSE,
+    #column_order = cell.type.order,
+    cluster_columns = FALSE,
+    width = unit(10 * length(cell.type.order),"mm"),
+    height = unit(10 * length(publication.traits),"mm"),
+    column_names_gp = grid::gpar(fontsize = 15),
+    row_names_gp = grid::gpar(fontsize = 15),
+    # row_split = row.split,
+    column_split = column.split,
+    heatmap_legend_param = heatmap.legend.param
+    );
+plot.size <- draw(plot, heatmap_legend_side = 'left', padding = unit(c(30, 10, 10, 70), "mm"));
+
+# measure the size of the heatmap:
+heatmap.width <- convertX(ComplexHeatmap:::width(plot.size), "inch", valueOnly = TRUE);
+heatmap.height <- convertY(ComplexHeatmap:::height(plot.size), "inch", valueOnly = TRUE)
+
+# use the measured width and height for drawing:
+output.path <- paste0('/u/home/l/lixinzhe/project-geschwind/plot/', Sys.Date(), '-developmental-cell-type-brain-traits-proportion-adult-only.png')
+pdf(
+    file = output.path,
+    width = heatmap.width,
+    height = heatmap.height
+    );
+draw(plot, heatmap_legend_side = 'left', padding = unit(c(30, 10, 10, 70), "mm"));
+dev.off();
+
+###########################################################################################
+######                                    make box plot                              ######
+###########################################################################################
+# visualize the box plot
+# Comparison among DRD1-BACH2, DRD1-eccentric-CASZ1, DRD1-EPHA4, DRD2-BACH2, DRD2-eccentric-CASZ1
+# VS PVALB Lamp5, L4-RORB
+disease = 'PASS_Schizophrenia_Pardinas2018'
+
+# get the adult z score, fdr:
+adult_only_risk_score = risk.score[[disease]][adult_cells, 'zscore']
+adult_only_fdr = risk.score[[disease]][adult_cells, 'fdr']
+meta_adult$risk_score = adult_only_risk_score
+meta_adult$fdr = adult_only_fdr
+
+# for schizophrenia at adult, look at the box plot for these cell types:
+pvalb_cell = rownames(meta_adult)[meta_adult$adjusted_L3 == 'Inh_PVALB']
+lamp5_cell = rownames(meta_adult)[meta_adult$adjusted_L3 == 'Inh_LAMP5']
+l4_rorb = rownames(meta_adult)[meta_adult$adjusted_L3 == 'Exc_L4-RORB']
+
+# also look at the DRD1-eccentric-CASZ1
+drd1_eccentric_cell = rownames(meta_adult)[meta_adult$adjusted_L3 == 'Inh_DRD1-eccentric-CASZ1']
+
+# look at the plot df:
+plot_df = meta_adult[c(drd1_eccentric_cell, l4_rorb, lamp5_cell, pvalb_cell), ]
+plot_df$cell_type = factor(plot_df$adjusted_L3, levels = c('Inh_DRD1-eccentric-CASZ1', 'Exc_L4-RORB', 'Inh_PVALB', 'Inh_LAMP5'))
+gplot <- ggplot(plot_df, aes(x = cell_type, y = risk_score, fill = cell_type)) +
+    geom_violin(trim = FALSE, alpha = 0.7) +
+    geom_boxplot(width = 0.15,       # narrow box, hide outliers
+               color = "black", alpha = 0.9) +
+    scale_fill_manual(
+        values = c(
+            'Inh_DRD1-eccentric-CASZ1' = '#fdc086',
+            'Exc_L4-RORB' = '#fc8d62',
+            'Inh_PVALB' = '#8da0cb',
+            'Inh_LAMP5' = '#66c2a5'
+            # 'middle temporal gyrus' = '#e78ac3'
+            )
+        ) +
+    xlab('Cell type') +
+    ylab('met-scDRS') +
+    theme_classic() +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    theme(text = element_text(size = 20)) +
+    theme(legend.position = "none")
+
+output.path <- paste0('/u/home/l/lixinzhe/project-cluo/plot/', Sys.Date(), '-SCZ-cell-type-met-scdrs-box-plot.png')
+pdf(
+    file = output.path,
+    width = 5,
+    height = 10
+    );
+print(gplot)
+dev.off();
+
+###########################################################################################
+######                              Look at the L1 by age                            ######
+###########################################################################################
+risk_score = risk.score[[disease]][, 'zscore']
+fdr = risk.score[[disease]][, 'fdr']
+meta$risk_score = risk_score
+meta$fdr = fdr
+
+plot_df = meta
+plot_df$age_group = factor(plot_df$fine2_age_groups, levels = c('2T', '3T', '1m', '4-7m', 'adult'))
+
+gplot <- ggplot(plot_df, aes(x = age_group, y = risk_score, fill = newL1)) +
+    geom_boxplot() +
+    # scale_fill_manual(
+    #     values = c(
+    #         'Inh_DRD1-eccentric-CASZ1' = '#fdc086',
+    #         'Exc_L4-RORB' = '#fc8d62',
+    #         'Inh_PVALB' = '#8da0cb',
+    #         'Inh_LAMP5' = '#66c2a5'
+    #         # 'middle temporal gyrus' = '#e78ac3'
+    #         )
+    #     ) +
+    xlab('Cell type') +
+    ylab('met-scDRS') +
+    labs(fill = "L1") +
+    theme_classic() +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    theme(text = element_text(size = 20))
+
+output.path <- paste0('/u/home/l/lixinzhe/project-cluo/plot/', Sys.Date(), '-SCZ-L1-met-scdrs-by-age-box-plot.png')
+pdf(
+    file = output.path,
+    width = 7,
+    height = 5
+    );
+print(gplot)
+dev.off();
+
+###########################################################################################
+######                                cell type by age                               ######
+###########################################################################################
+# for schizophrenia at adult, look at the box plot for these cell types:
+pvalb_cell = rownames(meta)[meta$adjusted_L3 == 'Inh_PVALB']
+lamp5_cell = rownames(meta)[meta$adjusted_L3 == 'Inh_LAMP5']
+l4_rorb = rownames(meta)[meta$adjusted_L3 == 'Exc_L4-RORB']
+
+# also look at the DRD1-eccentric-CASZ1
+drd1_eccentric_cell = rownames(meta)[meta$adjusted_L3 == 'Inh_DRD1-eccentric-CASZ1']
+
+plot_df = meta[c(pvalb_cell, lamp5_cell, l4_rorb, drd1_eccentric_cell), ]
+plot_df$cell_type = factor(plot_df$adjusted_L3, levels = c('Inh_DRD1-eccentric-CASZ1', 'Exc_L4-RORB', 'Inh_PVALB', 'Inh_LAMP5'))
+plot_df$age_group = factor(plot_df$fine2_age_groups, levels = c('2T', '3T', '1m', '4-7m', 'adult'))
+
+gplot <- ggplot(plot_df, aes(x = age_group, y = risk_score, fill = cell_type)) +
+    geom_boxplot() +
+    scale_fill_manual(
+        name = "L3",  # legend title
+        values = c(
+        'Exc_L4-RORB' = '#fdc086',
+        'Inh_LAMP5' = '#fc8d62',
+        'Inh_PVALB' = '#8da0cb',
+        'Inh_DRD1-eccentric-CASZ1' = '#66c2a5'
+        ),
+        labels = c(
+        "Exc_L4-RORB" = "L4-RORB",
+        "Inh_LAMP5"  = "LAMP5",
+        "Inh_PVALB"   = "PVALB",
+        "Inh_DRD1-eccentric-CASZ1" = "DRD1\neccentric"
+        )
+    ) +
+    xlab('Cell type') +
+    ylab('met-scDRS') +
+    theme_classic() +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+    theme(text = element_text(size = 20))
+
+output.path <- paste0('/u/home/l/lixinzhe/project-cluo/plot/', Sys.Date(), '-SCZ-L3-met-scdrs-by-age-box-plot.png')
+pdf(
+    file = output.path,
+    width = 7,
+    height = 5
+    );
+print(gplot)
+dev.off();

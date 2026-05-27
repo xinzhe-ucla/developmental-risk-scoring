@@ -6,10 +6,10 @@
 #$ -o /u/scratch/l/lixinzhe/job-log/joblog.$JOB_ID
 #$ -j y
 ## Edit the line below as needed:
-#$ -l h_rt=23:59:00,h_data=40G
+#$ -l h_rt=23:00:00,h_data=10G
 ## Modify the parallel environment
 ## and the number of cores as needed:
-#$ -pe shared 4
+#$ -pe shared 7
 # Email address to notify
 #$ -M lxzjason@gmail.com
 # Notify when
@@ -73,7 +73,7 @@ Rscript /u/home/l/lixinzhe/project-github/scDRS-applications/code/met-scDRS-meth
 if [ -n "$cov_file" ]; then
     met_scdrs compute_score \
         --h5ad_file ${h5ad_file} \
-        --preprocess True \
+        --preprocess False \
         --preprocess_method inverse \
         --variance_clip 5 \
         --transformation ${transform_scheme} \
@@ -85,7 +85,7 @@ if [ -n "$cov_file" ]; then
         --ctrl_match_opt ${control_scheme} \
         --weight_opt ${weight_opt} \
         --n_ctrl 1000 \
-        --flag_return_ctrl_raw_score False \
+        --flag_return_ctrl_raw_score True \
         --flag_return_ctrl_norm_score True \
         --diagnostic True \
         --diagnostic_dir ${diagnostic_dir} \
@@ -93,7 +93,7 @@ if [ -n "$cov_file" ]; then
 else
     met_scdrs compute_score \
         --h5ad_file ${h5ad_file} \
-        --preprocess True \
+        --preprocess False \
         --preprocess_method inverse \
         --variance_clip 5 \
         --transformation ${transform_scheme} \
@@ -104,7 +104,7 @@ else
         --ctrl_match_opt ${control_scheme} \
         --weight_opt ${weight_opt} \
         --n_ctrl 1000 \
-        --flag_return_ctrl_raw_score False \
+        --flag_return_ctrl_raw_score True \
         --flag_return_ctrl_norm_score True \
         --diagnostic True \
         --diagnostic_dir ${diagnostic_dir} \

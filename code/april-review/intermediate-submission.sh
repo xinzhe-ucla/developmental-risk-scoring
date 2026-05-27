@@ -43,6 +43,7 @@ output_dir="$7"
 
 # NOTE, the last (6th argument must be covariate file, otherwise interpretted incorrectly)
 cov_file="$8"
+intermediate_file="$9"
 
 DIR="/u/scratch/l/lixinzhe/tmp-file/tmp-gs/"
 tmp_gs="${DIR}${JOB_ID}_tmp.gs"
@@ -82,6 +83,7 @@ if [ -n "$cov_file" ]; then
         --gs-file ${tmp_gs} \
         --gs_species human \
         --out_folder ${output_dir} \
+        --intermediate ${intermediate_file} \
         --ctrl_match_opt ${control_scheme} \
         --weight_opt ${weight_opt} \
         --n_ctrl 1000 \
