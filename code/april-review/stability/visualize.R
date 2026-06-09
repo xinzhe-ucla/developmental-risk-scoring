@@ -17,7 +17,23 @@ mean_var_length_arcsine = read.table("/u/home/l/lixinzhe/project-geschwind/resul
 mean_var_length_library = read.table("/u/home/l/lixinzhe/project-geschwind/result/met-scDRS/dev-revised/revision-stability/mean_var_length-library-inv_std/PASS_Schizophrenia_Pardinas2018.score.gz", sep = '\t', header = TRUE, row.names = 1)
 
 # load in the cell type:
-meta = read.table('/u/home/l/lixinzhe/project-geschwind/port/scratch/met_scdrs_dev/metadata_10292025_subset.csv.gz', sep = ',', header=TRUE, row.names = 1)
+# meta = read.table('/u/home/l/lixinzhe/project-geschwind/port/scratch/met_scdrs_dev/metadata_10292025_subset.csv.gz', sep = ',', header=TRUE, row.names = 1)
+meta = read.table('/u/project/cluo/heffel/BICAN3/REVISION/metadata_passQC_05212026.tsv.gz', sep = '\t', header=TRUE, row.names = 1)
+
+# label the '' as 'unknown'
+meta$newL1 = meta$L1
+meta$newL2 = meta$L2
+meta$adjusted_L3 = meta$L3
+meta$fine2_age_groups = meta$age_group
+
+# edit the unknowns:
+meta$newL1[meta$newL1 == ''] = 'unknown'
+meta$newL1[meta$newL1 == '?'] = 'unknown'
+meta$newL2[meta$newL2 == ''] = 'unknown'
+meta$newL2[meta$newL2 == '?'] = 'unknown'
+meta$adjusted_L3[meta$adjusted_L3 == ''] = 'unknown'
+meta$adjusted_L3[meta$adjusted_L3 == '?'] = 'unknown'
+meta$adjusted_L3 = paste0(meta$newL1, '_', meta$adjusted_L3)
 
 # once this is loaded in, look at the proportion of significant cells in 
 stopifnot(rownames(mean_var_logit)== rownames(mean_var_length_logit))
@@ -42,12 +58,12 @@ mean_var_length_library$FDR = p.adjust(mean_var_length_library$pval, method = 'f
 ######       Check proportion of significance at DRD cell types                      ######
 ###########################################################################################
 cell_types = c(
-    'DRD1-BACH2',
-    'DRD1-eccentric-CASZ1',
-    'DRD1-EPHA4',
-    'DRD2-BACH2',
-    'DRD2-eccentric-CASZ1',
-    'DRD2-EPHA4'
+    'Inh_DRD1-BACH2',
+    'Inh_DRD1-eccentric-CASZ1',
+    'Inh_DRD1-EPHA4',
+    'Inh_DRD2-BACH2',
+    'Inh_DRD2-eccentric-CASZ1',
+    'Inh_DRD2-EPHA4'
     )
 
 # for each cell type in cell types interest, query the number of significant cells in cell types:
