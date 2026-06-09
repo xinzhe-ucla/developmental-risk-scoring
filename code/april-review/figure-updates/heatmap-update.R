@@ -10,7 +10,9 @@ library(clusterProfiler);
 library(ComplexHeatmap)
 require(circlize);
 
-meta = read.table('/u/home/l/lixinzhe/project-geschwind/port/scratch/met_scdrs_dev/metadata_10292025_subset.csv.gz', sep = ',', header=TRUE, row.names = 1)
+# meta = read.table('/u/home/l/lixinzhe/project-geschwind/port/scratch/met_scdrs_dev/metadata_10292025_subset.csv.gz', sep = ',', header=TRUE, row.names = 1)
+# update the meta to the one Heng gave me:
+meta = read.table('/u/project/cluo/heffel/BICAN3/REVISION/metadata_passQC_05212026.tsv.gz', sep = '\t', header=TRUE, row.names = 1)
 scDRS.directory = '/u/home/l/lixinzhe/project-geschwind/result/met-scDRS/dev-revised/cov/'
 
 score.files <- list.files(scDRS.directory, pattern = '\\.score.gz', full.names = TRUE);
@@ -37,6 +39,12 @@ common_cells = intersect(new_name, rownames(meta))
 meta = meta[common_cells, ]
 
 # label the '' as 'unknown'
+meta$newL1 = meta$L1
+meta$newL2 = meta$L2
+meta$adjusted_L3 = meta$L3
+meta$fine2_age_groups = meta$age_group
+
+# edit the unknowns:
 meta$newL1[meta$newL1 == ''] = 'unknown'
 meta$newL1[meta$newL1 == '?'] = 'unknown'
 meta$newL2[meta$newL2 == ''] = 'unknown'
