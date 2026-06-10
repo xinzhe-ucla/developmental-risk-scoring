@@ -113,3 +113,115 @@ for age_point in 1m 2T 3T 4-7m adult; do
         "${output}" \
         "${additional_baseline}"
 done
+
+###########################################################################################
+######                       LDSC Partitioned Heritability SCZ                       ######
+###########################################################################################
+# do ldsc:
+conda activate ldsc
+cd /u/home/l/lixinzhe/project-geschwind/software/ldsc/ldsc
+annotation_dir="/u/home/l/lixinzhe/project-geschwind/result/ldsc/brain-dev/dmr_pairwise_annot/"
+baseline_dir="/u/home/l/lixinzhe/project-geschwind/software/ldsc/"
+
+# for SCZ:
+gwas_dir="/u/home/l/lixinzhe/project-geschwind/data/GWAS/"
+gwas="${gwas_dir}Schizophrenia_pardinas2018_munged.sumstats.gz"
+submission_script="/u/home/l/lixinzhe/project-github/developmental-risk-scoring/code/ldsc/pair-wise-heritability.sh"
+baselines="/u/home/l/lixinzhe/project-geschwind/software/ldsc/baselineLD."
+
+for age_point in 1m 2T 3T 4-7m adult; do
+    base="methylpy_pair_${age_point}_dms2_hypo_${age_point}_Exc_UL_L4-RORB.hg19.dmr."
+    annot_ldscore="${annotation_dir}${base%.*}."
+    
+    background="methylpy_pair_${age_point}_dms2_hypo_${age_point}_Inh_MSN_DRD1-eccentric-CASZ1.hg19.dmr."
+    background_ldscore="${annotation_dir}${background%.*}."
+    
+    additional_baseline="/u/home/l/lixinzhe/project-geschwind/result/ldsc/fetal_brain_baseline/annot/fetal_brain_DNase_hotspot_fdr0.01_union.bed."
+    
+    output="/u/home/l/lixinzhe/project-geschwind/result/ldsc/brain-dev/partitioned_heritability/pairwise_with_fetal_brain/SCZ/${base%.*}"
+    if [[ -f "${output}.results" ]]; then
+        echo "output exists -> skip"
+        continue
+    fi
+    qsub ${submission_script} \
+        "${gwas}" \
+        "${annot_ldscore}" \
+        "${baselines}" \
+        "${background_ldscore}" \
+        "${output}" \
+        "${additional_baseline}"
+done
+
+###########################################################################################
+######                       LDSC Partitioned Heritability ADHD                      ######
+###########################################################################################
+# do ldsc:
+conda activate ldsc
+cd /u/home/l/lixinzhe/project-geschwind/software/ldsc/ldsc
+annotation_dir="/u/home/l/lixinzhe/project-geschwind/result/ldsc/brain-dev/dmr_pairwise_annot/"
+baseline_dir="/u/home/l/lixinzhe/project-geschwind/software/ldsc/"
+
+# for ADHD:
+gwas_dir="/u/home/l/lixinzhe/project-geschwind/data/GWAS/"
+gwas="${gwas_dir}ADHD_Demontis2018_munged.sumstats.gz"
+submission_script="/u/home/l/lixinzhe/project-github/developmental-risk-scoring/code/ldsc/pair-wise-heritability.sh"
+baselines="/u/home/l/lixinzhe/project-geschwind/software/ldsc/baselineLD."
+
+for age_point in 1m 2T 3T 4-7m adult; do
+    base="methylpy_pair_${age_point}_dms2_hypo_${age_point}_Exc_UL_L4-RORB.hg19.dmr."
+    annot_ldscore="${annotation_dir}${base%.*}."
+    
+    background="methylpy_pair_${age_point}_dms2_hypo_${age_point}_Inh_MSN_DRD1-eccentric-CASZ1.hg19.dmr."
+    background_ldscore="${annotation_dir}${background%.*}."
+    
+    additional_baseline="/u/home/l/lixinzhe/project-geschwind/result/ldsc/fetal_brain_baseline/annot/fetal_brain_DNase_hotspot_fdr0.01_union.bed."
+    
+    output="/u/home/l/lixinzhe/project-geschwind/result/ldsc/brain-dev/partitioned_heritability/pairwise_with_fetal_brain/ADHD/${base%.*}"
+    if [[ -f "${output}.results" ]]; then
+        echo "output exists -> skip"
+        continue
+    fi
+    qsub ${submission_script} \
+        "${gwas}" \
+        "${annot_ldscore}" \
+        "${baselines}" \
+        "${background_ldscore}" \
+        "${output}" \
+        "${additional_baseline}"
+done
+
+###########################################################################################
+######                                    Summarize                                  ######
+###########################################################################################
+Rscript /u/home/l/lixinzhe/project-github/developmental-risk-scoring/code/april-review/loop_DMR/visualization.R \
+    --ldsc_dir /u/home/l/lixinzhe/project-geschwind/result/ldsc/brain-dev/partitioned_heritability/pairwise_with_fetal_brain/ \
+    --output "/u/home/l/lixinzhe/project-geschwind/plot/$(date +%F)-MDD-pairwise-with-fetal-brain-DNAase-h2-table.csv" \
+    --trait "MDD"
+
+Rscript /u/home/l/lixinzhe/project-github/developmental-risk-scoring/code/april-review/loop_DMR/visualization.R \
+    --ldsc_dir /u/home/l/lixinzhe/project-geschwind/result/ldsc/brain-dev/partitioned_heritability/pairwise_with_fetal_brain/SCZ/ \
+    --output "/u/home/l/lixinzhe/project-geschwind/plot/$(date +%F)-SCZ-pairwise-with-fetal-brain-DNAase-h2-table.csv" \
+    --trait "SCZ"
+
+Rscript /u/home/l/lixinzhe/project-github/developmental-risk-scoring/code/april-review/loop_DMR/visualization.R \
+    --ldsc_dir /u/home/l/lixinzhe/project-geschwind/result/ldsc/brain-dev/partitioned_heritability/pairwise_with_fetal_brain/ADHD/ \
+    --output "/u/home/l/lixinzhe/project-geschwind/plot/$(date +%F)-ADHD-pairwise-with-fetal-brain-DNAase-h2-table.csv" \
+    --trait "ADHD"
+
+Rscript /u/home/l/lixinzhe/project-github/developmental-risk-scoring/code/april-review/loop_DMR/visualization.R \
+    --ldsc_dir /u/home/l/lixinzhe/project-geschwind/result/ldsc/brain-dev/partitioned_heritability/pairwise_with_fetal_brain/ \
+    --output "/u/home/l/lixinzhe/project-geschwind/plot/$(date +%F)-MDD-paired-with-fetal-brain-DNAase-h2-table.csv" \
+    --trait "MDD" \
+    --pair
+
+Rscript /u/home/l/lixinzhe/project-github/developmental-risk-scoring/code/april-review/loop_DMR/visualization.R \
+    --ldsc_dir /u/home/l/lixinzhe/project-geschwind/result/ldsc/brain-dev/partitioned_heritability/pairwise_with_fetal_brain/SCZ/ \
+    --output "/u/home/l/lixinzhe/project-geschwind/plot/$(date +%F)-SCZ-paired-with-fetal-brain-DNAase-h2-table.csv" \
+    --trait "SCZ" \
+    --pair
+
+Rscript /u/home/l/lixinzhe/project-github/developmental-risk-scoring/code/april-review/loop_DMR/visualization.R \
+    --ldsc_dir /u/home/l/lixinzhe/project-geschwind/result/ldsc/brain-dev/partitioned_heritability/pairwise_with_fetal_brain/ADHD/ \
+    --output "/u/home/l/lixinzhe/project-geschwind/plot/$(date +%F)-ADHD-paired-with-fetal-brain-DNAase-h2-table.csv" \
+    --trait "ADHD" \
+    --pair
