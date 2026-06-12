@@ -9,6 +9,7 @@ library(ggplot2)
 library(grid)
 
 # load in meta:
+print('loading meta')
 meta = read.table('/u/home/l/lixinzhe/project-geschwind/port/scratch/met_scdrs_dev/metadata_10292025_subset.csv.gz', sep = ',', header=TRUE, row.names = 1)
 # label the '' as 'unknown'
 meta$newL1[meta$newL1 == ''] = 'unknown'
@@ -19,6 +20,7 @@ meta$adjusted_L3[meta$adjusted_L3 == ''] = 'unknown'
 meta$adjusted_L3[meta$adjusted_L3 == '?'] = 'unknown'
 
 # load in the methylation matrix:
+print('loading methylation')
 expr <- RcppCNPy::npyLoad("/u/home/l/lixinzhe/project-geschwind/port/scratch/revision/diagnostics/regressed_unnormalized_genebody_blacklist_allgenes_merged_X_only.npy")
 meta_cells <- read.csv("/u/home/l/lixinzhe/project-geschwind/port/scratch/revision/diagnostics/regressed_unnormalized_genebody_blacklist_allgenes_merged_cell_meta.csv", row.names = 1)
 meta_genes <- read.csv("/u/home/l/lixinzhe/project-geschwind/port/scratch/revision/diagnostics/regressed_unnormalized_genebody_blacklist_allgenes_merged_gene_meta.csv", row.names = 1)
@@ -34,6 +36,7 @@ rownames(expr) = new_name
 colnames(expr) = rownames(meta_genes)
 
 # load in the score:
+print('loading in score')
 score = read.table("/u/home/l/lixinzhe/project-geschwind/result/met-scDRS/dev-revised/cov/PASS_Schizophrenia_Pardinas2018.score.gz", sep = '\t', header = TRUE, row.names = 1)
 new_name = gsub('-0-0-0', '', rownames(score))
 new_name = gsub('-1-0$', '', new_name)
@@ -62,6 +65,7 @@ trait.gene.set <- lapply(trait.gs$GENESET, gs.decomposer);
 names(trait.gene.set) <- trait.gs$TRAIT;
 
 # find out the age dependent network:
+print('getting cells belonging to each fine2 age group')
 meta = meta[rownames(expr), ]
 meta$cell_id <- rownames(meta)
 cells_of_interest <- meta %>%
@@ -90,6 +94,7 @@ for (each_combo in seq(1, nrow(cells_of_interest))){
     gene_set[[combo_name]] = trait.gene.set[['PASS_Schizophrenia_Pardinas2018']]
 }
 
+print('computing the correlation between SCZ risk score and methylation')
 score.mch.cor <- expr.ds.cor(
     score = risk.score,
     expression = expr,
@@ -104,6 +109,7 @@ for (each_combo in names(gene_set)){
 
 bg.gene <- colnames(expr);
 
+print('computing the GO on the top correlated genes')
 go_result_list = NULL
 for (each_combo in names(gene_set)){
     top.genes = top.genes.list[[each_combo]]
@@ -115,8 +121,8 @@ for (each_combo in names(gene_set)){
             visualize = TRUE
             );
         readable.result <- setReadable(gene.ontology.result, 'org.Hs.eg.db', 'ENTREZID')
-        saveRDS(score.mch.cor[[each_combo]], paste0('/u/home/l/lixinzhe/project-geschwind/port/scratch/revision/GO/age/', each_combo, '_SCZ_score_mcg_correlation.rds'))
-        saveRDS(readable.result, paste0('/u/home/l/lixinzhe/project-geschwind/port/scratch/revision/GO/age/', each_combo, '_SCZ_readable_go_results.rds'))
+        saveRDS(score.mch.cor[[each_combo]], paste0('/u/home/l/lixinzhe/project-geschwind/port/scratch/revision/GO/age/', Sys.Date(), '_', each_combo, '_SCZ_score_mcg_correlation.rds'))
+        saveRDS(readable.result, paste0('/u/home/l/lixinzhe/project-geschwind/port/scratch/revision/GO/age/', Sys.Date(), '_', each_combo, '_SCZ_readable_go_results.rds'))
         
         # visualize the gene ontology for MDD:
         dot.plot <- dotplot(
@@ -188,9 +194,19 @@ for (each_combo in names(gene_set)){
     }
 
     }
+
 ###########################################################################################
 ######                                        ADHD                                   ######
 ###########################################################################################
+# load in the score:
+print('load in the score for the ADHD')
+score = read.table("/u/home/l/lixinzhe/project-geschwind/result/met-scDRS/dev-revised/cov/PASS_ADHD_Demontis2018.score.gz", sep = '\t', header = TRUE, row.names = 1)
+new_name = gsub('-0-0-0', '', rownames(score))
+new_name = gsub('-1-0$', '', new_name)
+new_name = gsub('-1$', '', new_name)
+new_name = gsub('-1-0-0$', '', new_name)
+rownames(score) = new_name
+
 # produce a vector of expr:
 cor_vec = rep(NA, ncol(expr))
 names(cor_vec) = colnames(expr)
@@ -209,6 +225,7 @@ for (each_combo in seq(1, nrow(cells_of_interest))){
     gene_set[[combo_name]] = trait.gene.set[['PASS_ADHD_Demontis2018']]
 }
 
+print('Compute correlation between ADHD risk score and methylation')
 score.mch.cor <- expr.ds.cor(
     score = risk.score,
     expression = expr,
@@ -223,6 +240,7 @@ for (each_combo in names(gene_set)){
 
 bg.gene <- colnames(expr);
 
+print('Compute GO terms for ADHD')
 go_result_list = NULL
 for (each_combo in names(gene_set)){
     top.genes = top.genes.list[[each_combo]]
@@ -236,8 +254,8 @@ for (each_combo in names(gene_set)){
         readable.result <- setReadable(gene.ontology.result, 'org.Hs.eg.db', 'ENTREZID')
         
         # save the results:
-        saveRDS(score.mch.cor[[each_combo]], paste0('/u/home/l/lixinzhe/project-geschwind/port/scratch/revision/GO/age/', each_combo, '_ADHD_score_mcg_correlation.rds'))
-        saveRDS(readable.result, paste0('/u/home/l/lixinzhe/project-geschwind/port/scratch/revision/GO/age/', each_combo, '_ADHD_readable_go_results.rds'))
+        saveRDS(score.mch.cor[[each_combo]], paste0('/u/home/l/lixinzhe/project-geschwind/port/scratch/revision/GO/age/',Sys.Date(), '_', each_combo, '_ADHD_score_mcg_correlation.rds'))
+        saveRDS(readable.result, paste0('/u/home/l/lixinzhe/project-geschwind/port/scratch/revision/GO/age/', Sys.Date(), '_', each_combo, '_ADHD_readable_go_results.rds'))
         
         # visualize the gene ontology for MDD:
         dot.plot <- dotplot(
